@@ -34,7 +34,7 @@ const Login = () => {
     setLoading(true);
     try {
       //const res = await api.post('token/', { email, password });
-      const res = await api.post('/api/token/', {
+      const res = await api.post('token/', {
         username: email,
         password,
       });
