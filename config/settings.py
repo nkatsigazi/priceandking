@@ -13,7 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-wj152o3rt&h)tu$u5l%a5!pb=*0*hsy+4w3*f%#9!y*=wlafk!'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ["*"]
 
@@ -47,8 +47,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-
-CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = 'config.urls'
 
@@ -123,7 +121,11 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Allow React (running on port 5173) to talk to Django
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
+    "https://priceandking.vercel.app", "http://localhost:5173"
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://priceandking.vercel.app",
 ]
 
 # Tell Django to use your custom user model
@@ -146,3 +148,6 @@ SIMPLE_JWT = {
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = False

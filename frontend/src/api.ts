@@ -2,7 +2,10 @@ import axios from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api/',
+  //baseURL: 'http://localhost:8000/api/',
+  //baseURL: import.meta.env.VITE_API_URL,
+  baseURL: import.meta.env.VITE_API_URL + '/api/',
+  withCredentials: true, 
 });
 
 // Request Interceptor: Attach the token to every request

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Logo from '../assets/logo-white.svg';
 
 import {
@@ -33,7 +33,11 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await api.post('token/', { email, password });
+      //const res = await api.post('token/', { email, password });
+      const res = await api.post('/api/token/', {
+        username: email,
+        password,
+      });
       const { access, refresh } = res.data;
 
       localStorage.setItem('access', access);
