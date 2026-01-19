@@ -1,13 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { 
-    Paper, Typography, Box, Button, CircularProgress, 
+    Typography, Box, Button, CircularProgress, 
     Card, CardContent, Alert, LinearProgress, FormControl, 
     InputLabel, Select, MenuItem, Container
 } from '@mui/material';
 import Grid from '@mui/material/Grid'; 
 import { CloudUpload } from '@mui/icons-material';
 import api from '../api';
-import Logo from '../assets/logo-white.svg';
 
 const PortalDashboard = () => {
     const [requests, setRequests] = useState<any[]>([]);
@@ -62,7 +61,7 @@ const PortalDashboard = () => {
             <Grid container spacing={3}>
                 {requests.filter(r => r.status === 'OPEN').map((req) => (
                     // PROPERTY FIX: Changed size={{ xs: 12 }} to item xs={12}
-                    <Grid item xs={12} key={req.id}>
+                    <Grid size={{ xs: 12 }} key={req.id}>
                         <Card variant="outlined" sx={{ borderRadius: 3, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
                             <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
                                 <Box sx={{ flexGrow: 1, minWidth: '300px' }}>
@@ -104,7 +103,7 @@ const PortalDashboard = () => {
                 ))}
                 
                 {requests.filter(r => r.status === 'OPEN').length === 0 && (
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <Alert severity="success">All caught up! No pending document requests.</Alert>
                     </Grid>
                 )}

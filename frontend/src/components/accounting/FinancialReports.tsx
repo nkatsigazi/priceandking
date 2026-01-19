@@ -1,5 +1,5 @@
-import React from 'react';
-import { Box, Typography, Grid, Paper, Alert, Divider } from '@mui/material';
+import { Box, Typography, Paper, Alert, Divider } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import { CheckCircle, ErrorOutline } from '@mui/icons-material';
 
 interface AccountReportItem {
@@ -45,12 +45,12 @@ const FinancialReports = ({ data }: { data: BalanceSheetData | null }) => {
 
   return (
     <Grid container spacing={4}>
-      <Grid item xs={12} md={7}>
+      <Grid size={{ xs: 12, md: 7 }}>
         <Section title="Assets" items={data.data?.ASSET || []} />
         <Section title="Liabilities" items={data.data?.LIABILITY || []} />
         <Section title="Equity" items={data.data?.EQUITY || []} />
       </Grid>
-      <Grid item xs={12} md={5}>
+      <Grid size={{ xs: 12, md: 5 }}>
         <Paper variant="outlined" sx={{ p: 3, bgcolor: '#fcfdf2', borderColor: '#e2e8f0', borderRadius: 2 }}>
           <Typography variant="h6" sx={{ color: '#931111', fontWeight: 700 }}>Quick Audit Check</Typography>
           <Divider sx={{ my: 2 }} />

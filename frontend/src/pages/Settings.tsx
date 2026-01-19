@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Box, Typography, Paper, Chip, Tabs, Tab, TextField,
-  Button, Switch, FormControlLabel, Divider, Grid, Avatar,
+  Button, Switch, FormControlLabel, Divider, Avatar,
   Select, MenuItem, FormControl, InputLabel, Autocomplete,
   Stack, Tooltip
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import { Save, Shield, Business, Rule, Mail, Language, Lock, NotificationsActive, IntegrationInstructions } from '@mui/icons-material';
 
 const Settings = () => {
@@ -27,7 +28,7 @@ const Settings = () => {
       <Paper sx={{ borderRadius: 3, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
         <Tabs
           value={tabValue}
-          onChange={(e, v) => setTabValue(v)}
+          onChange={(_, v) => setTabValue(v)}
           sx={{
             bgcolor: '#f8f9fa',
             borderBottom: 1,
@@ -48,7 +49,7 @@ const Settings = () => {
           {/* TAB 1: FIRM PROFILE */}
           {tabValue === 0 && (
             <Grid container spacing={4}>
-              <Grid item xs={12} md={4}>
+              <Grid size={{ xs: 12, md: 4 }}>
                 <Typography variant="h6" fontWeight="bold">Public Branding</Typography>
                 <Typography variant="body2" color="text.secondary">This appears on the Client Portal, generated Audit Reports, and global communications.</Typography>
                 <Box sx={{ mt: 2, p: 3, border: '2px dashed #e0e0e0', borderRadius: 2, textAlign: 'center' }}>
@@ -57,7 +58,7 @@ const Settings = () => {
                   <Typography variant="caption" display="block" sx={{ mt: 1, color: 'text.secondary' }}>Recommended: SVG or PNG, 500x500px</Typography>
                 </Box>
               </Grid>
-              <Grid item xs={12} md={8}>
+              <Grid size={{ xs: 12, md: 8 }}>
                 <TextField fullWidth label="Firm Legal Name" defaultValue="Price & King Audit & Assurance" sx={{ mb: 3 }} />
                 <TextField fullWidth label="Primary Office Address" multiline rows={3} defaultValue="123 Financial District, Suite 500, New York, NY 10001" sx={{ mb: 3 }} />
                 <TextField fullWidth label="Firm Website" defaultValue="https://priceandking.com" sx={{ mb: 3 }} />
@@ -108,7 +109,7 @@ const Settings = () => {
               </Typography>
               <Stack direction="row" flexWrap="wrap" gap={1}>
                 {['Trial Balance', 'General Ledger', 'Bank Statements', 'Fixed Asset Register', 'Tax Returns', 'Inventory Listings', 'Contracts & Agreements'].map((item) => (
-                  <Chip key={item} label={item} onDelete={() => {}} deletable sx={{ mr: 1, mb: 1 }} />
+                  <Chip key={item} label={item} onDelete={() => {}} sx={{ mr: 1, mb: 1 }} />
                 ))}
                 <Chip label="Add New" onClick={() => {}} variant="outlined" sx={{ mr: 1, mb: 1 }} />
               </Stack>
@@ -236,7 +237,7 @@ const Settings = () => {
               <Typography variant="h6" fontWeight="bold" sx={{ mb: 1 }}>Third-Party Integrations</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>Connect with world-class tools for seamless global workflows.</Typography>
               <Grid container spacing={3}>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Paper variant="outlined" sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Avatar sx={{ bgcolor: '#4285F4' }}>G</Avatar>
                     <Box flexGrow={1}>
@@ -248,7 +249,7 @@ const Settings = () => {
                     </Tooltip>
                   </Paper>
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Paper variant="outlined" sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Avatar sx={{ bgcolor: '#FF6600' }}>Q</Avatar>
                     <Box flexGrow={1}>
@@ -260,7 +261,7 @@ const Settings = () => {
                     </Tooltip>
                   </Paper>
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Paper variant="outlined" sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Avatar sx={{ bgcolor: '#0A66C2' }}>L</Avatar>
                     <Box flexGrow={1}>
@@ -272,7 +273,7 @@ const Settings = () => {
                     </Tooltip>
                   </Paper>
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Paper variant="outlined" sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Avatar sx={{ bgcolor: '#25D366' }}>W</Avatar>
                     <Box flexGrow={1}>

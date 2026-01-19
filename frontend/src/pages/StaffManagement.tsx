@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Paper, Button, Typography, Chip, Box, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, IconButton,
-  InputAdornment, FormControlLabel, Switch, Grid, Avatar
+  InputAdornment, FormControlLabel, Switch, Avatar
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import {
   PersonAdd, Security, Visibility, VisibilityOff, Edit, AddCircle
 } from '@mui/icons-material';
@@ -260,7 +261,7 @@ const StaffManagement = () => {
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
             
             {/* 1. Identity Section */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 label="First Name"
                 fullWidth
@@ -268,7 +269,7 @@ const StaffManagement = () => {
                 onChange={(e) => setFormData({...formData, first_name: e.target.value})}
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 label="Last Name"
                 fullWidth
@@ -276,7 +277,7 @@ const StaffManagement = () => {
                 onChange={(e) => setFormData({...formData, last_name: e.target.value})}
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 label="Email"
                 type="email"
@@ -285,7 +286,7 @@ const StaffManagement = () => {
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 label="Phone Number"
                 fullWidth
@@ -293,7 +294,7 @@ const StaffManagement = () => {
                 onChange={(e) => setFormData({...formData, phone: e.target.value})}
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 label="Other Phone Number"
                 fullWidth
@@ -303,7 +304,7 @@ const StaffManagement = () => {
             </Grid>
             {/* Only show password field when creating a NEW user */}
             {!isEditMode && (
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
                   label="Password"
                   type={showPassword ? 'text' : 'password'}
@@ -324,7 +325,7 @@ const StaffManagement = () => {
               </Grid>
             )}
             {/* 2. Professional Details */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 select
                 label="Role"
@@ -337,7 +338,7 @@ const StaffManagement = () => {
                 <MenuItem value="CONSULTANT">Consultant</MenuItem>
               </TextField>
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 label="Position Title"
                 fullWidth
@@ -347,7 +348,7 @@ const StaffManagement = () => {
               />
             </Grid>
             
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 label="Hourly Rate ($)"
                 type="number"
@@ -356,7 +357,7 @@ const StaffManagement = () => {
                 onChange={(e) => setFormData({...formData, hourly_rate: e.target.value})}
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 label="Joining Date"
                 type="date"
@@ -366,7 +367,7 @@ const StaffManagement = () => {
                 onChange={(e) => setFormData({...formData, joining_date: e.target.value})}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, p: 2, bgcolor: '#f8f9fa', borderRadius: 2 }}>
                 <Avatar
                   src={formData.avatar_url}
@@ -408,7 +409,7 @@ const StaffManagement = () => {
                 </Box>
               </Box>
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 label="Professional Biography"
                 multiline
@@ -420,7 +421,7 @@ const StaffManagement = () => {
             </Grid>
 
             {/* 3. Skills Manager */}
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Typography variant="caption" color="text.secondary">
                 Skills (Type and press Enter to add)
               </Typography>
@@ -450,7 +451,7 @@ const StaffManagement = () => {
             </Grid>
             
             {/* 4. Capabilities Toggle inside Dialog (Optional duplicate of table view) */}
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
                <FormControlLabel
                 control={
                   <Switch

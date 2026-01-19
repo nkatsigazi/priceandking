@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
-  Paper, Typography, Box, Chip, Button, 
+  Paper, Typography, Box, Button, 
   Dialog, DialogTitle, DialogContent, TextField, DialogActions, 
   MenuItem, Divider
 } from '@mui/material';

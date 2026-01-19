@@ -1,12 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Box, Typography, Paper, Button, Divider, Chip, Grid, TextField } from '@mui/material';
-import { ArrowBack, Save, History } from '@mui/icons-material';
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { Box, Typography, Paper, Button, TextField } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import api from '../api';
 
 const TaskDetail = () => {
-  const { id, taskId } = useParams();
-  const navigate = useNavigate();
+  const { taskId } = useParams();
   const [task, setTask] = useState<any>(null);
   const [memo, setMemo] = useState(''); // State for the text box
 
@@ -46,7 +45,7 @@ const TaskDetail = () => {
        {/* ... Header Code ... */}
 
        <Grid container spacing={3}>
-         <Grid item xs={8}>
+         <Grid size={{ xs: 8 }}>
            <Paper sx={{ p: 3 }}>
              <Typography variant="h6">Audit Memo</Typography>
              <TextField 
@@ -65,7 +64,7 @@ const TaskDetail = () => {
            </Paper>
          </Grid>
 
-         <Grid item xs={4}>
+         <Grid size={{ xs: 4 }}>
            <Paper sx={{ p: 3 }}>
              <Typography variant="h6">Sign-offs</Typography>
              

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Paper, Typography, Box, Button, Grid, Card, CardContent,
   IconButton, Dialog, DialogTitle, DialogContent, TextField,
@@ -127,7 +127,7 @@ const EngagementDocs = ({ engagementId }: { engagementId: number }) => {
       {/* Documents */}
       <Grid container spacing={2}>
         {filteredDocs.map(doc => (
-          <Grid item xs={12} md={6} lg={4} key={doc.id}>
+          <Grid size={{ xs: 12, md: 6, lg: 4 }} key={doc.id}>
             <Card sx={{ borderRadius: 2, '&:hover': { boxShadow: 4 } }}>
               <CardContent>
                 <Box sx={{ display: 'flex', mb: 2 }}>

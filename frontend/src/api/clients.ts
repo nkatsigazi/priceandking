@@ -1,5 +1,5 @@
 import api from '../api';
-import { Client } from '../types/client';
+import type { Client } from '../types/client';
 
 export const fetchClients = async (): Promise<Client[]> => {
   const res = await api.get<Client[]>('crm/clients/');

@@ -1,25 +1,15 @@
-import React, { useState } from 'react';
 import { 
-  Paper, Typography, Box, Grid, Chip, Button, IconButton, 
-  Dialog, DialogTitle, DialogContent, TextField, DialogActions, MenuItem 
+  Paper, Typography, Box, Chip
 } from '@mui/material';
-import { Edit, Business, CalendarToday, Person } from '@mui/icons-material';
-import api from '../api';
+import { Business, CalendarToday, Person } from '@mui/icons-material';
 
-const ClientOverview = ({ client, onUpdate }: { client: any, onUpdate: () => void }) => {
-  const [open, setOpen] = useState(false);
-  const [formData, setFormData] = useState<any>({});
+// 1. Define the interface to include onUpdate
+interface ClientOverviewProps {
+  client: any;
+  onUpdate: () => Promise<void> | void; // Add this line
+}
 
-  const handleEdit = () => {
-    setFormData(client);
-    setOpen(true);
-  };
-
-  const handleSave = async () => {
-    await api.patch(`clients/${client.id}/`, formData);
-    setOpen(false);
-    onUpdate();
-  };
+  const ClientOverview = ({ client, onUpdate: _onUpdate }: ClientOverviewProps) => {
 
   const InfoRow = ({ icon, label, value }: any) => (
     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -32,28 +22,26 @@ const ClientOverview = ({ client, onUpdate }: { client: any, onUpdate: () => voi
   );
 
   return (
-    <>
-      <Paper sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-          <Typography variant="h6" fontWeight="bold">Client Overview</Typography>
-        </Box>
+    <Paper sx={{ p: 3, borderRadius: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+        <Typography variant="h6" fontWeight="bold">Client Overview</Typography>
+      </Box>
 
-        <InfoRow icon={<Business />} label="Entity Type" value={client.entity_type} />
-        <InfoRow icon={<Person />} label="Assigned Partner" value={client.partner?.username || 'Unassigned'} />
-        <InfoRow icon={<CalendarToday />} label="Fiscal Year End" value={client.fiscal_year_end} />
-        
-        <Box sx={{ mt: 2 }}>
-            <Typography variant="caption" color="text.secondary">Status</Typography>
-            <Box sx={{ mt: 1 }}>
-                <Chip 
-                    label={client.is_active ? "Active Client" : "Inactive"} 
-                    color={client.is_active ? "success" : "default"} 
-                    size="small" 
-                />
-            </Box>
-        </Box>
-      </Paper>
-    </>
+      <InfoRow icon={<Business />} label="Entity Type" value={client.entity_type} />
+      <InfoRow icon={<Person />} label="Assigned Partner" value={client.partner?.username || 'Unassigned'} />
+      <InfoRow icon={<CalendarToday />} label="Fiscal Year End" value={client.fiscal_year_end} />
+      
+      <Box sx={{ mt: 2 }}>
+          <Typography variant="caption" color="text.secondary">Status</Typography>
+          <Box sx={{ mt: 1 }}>
+              <Chip 
+                  label={client.is_active ? "Active Client" : "Inactive"} 
+                  color={client.is_active ? "success" : "default"} 
+                  size="small" 
+              />
+          </Box>
+      </Box>
+    </Paper>
   );
 };
 

@@ -1,13 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Typography, Grid, Paper, LinearProgress, Stack, Avatar } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { Box, Typography, Paper, LinearProgress, Stack, Avatar } from '@mui/material';
 import { 
   Business, 
   Assignment, 
-  QueryStats, 
   WarningAmber, 
   CheckCircleOutline, 
-  AccountBalance 
 } from '@mui/icons-material';
+import Grid from '@mui/material/Grid';
 import api from '../api';
 
 const DashboardOverview = () => {
@@ -90,7 +89,7 @@ const DashboardOverview = () => {
 
       <Grid container spacing={3}>
         {/* Row 1: High Level Totals */}
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard 
             title="TOTAL CLIENTS" 
             value={stats.totalClients} 
@@ -99,7 +98,7 @@ const DashboardOverview = () => {
             subtext="Active entity accounts"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard 
             title="ACTIVE ENGAGEMENTS" 
             value={stats.activeEngagements} 
@@ -108,7 +107,7 @@ const DashboardOverview = () => {
             subtext="Workflows in progress"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard 
             title="HIGH RISK ENTITIES" 
             value={stats.highRiskClients} 
@@ -117,7 +116,7 @@ const DashboardOverview = () => {
             subtext="Requiring partner oversight"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard 
             title="COMPLETED AUDITS" 
             value={stats.completedAudits} 
@@ -128,7 +127,7 @@ const DashboardOverview = () => {
         </Grid>
 
         {/* Row 2: Progress & Volume */}
-        <Grid item xs={12} md={8}>
+        <Grid size={{ xs: 12, md: 8 }}>
           <Paper sx={{ p: 4, borderRadius: 3, height: '100%' }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>Overall Engagement Progress</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
@@ -151,7 +150,7 @@ const DashboardOverview = () => {
           </Paper>
         </Grid>
 
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Paper sx={{ p: 4, borderRadius: 3, bgcolor: '#1a351a', color: 'white' }}>
             <Stack spacing={2}>
               <Typography variant="h6" fontWeight="bold">Resource Volume</Typography>

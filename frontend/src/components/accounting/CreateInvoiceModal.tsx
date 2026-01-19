@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, 
-  Grid, TextField, MenuItem, IconButton, Table, TableBody, 
+  TextField, MenuItem, IconButton, Table, TableBody, 
   TableCell, TableContainer, TableHead, TableRow, Typography, Divider, CircularProgress
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import { Add, Close as CloseIcon, Delete as DeleteIcon, Save as SaveIcon, Description } from '@mui/icons-material';
 import api from '../../api'; 
 
@@ -102,7 +103,7 @@ const CreateInvoicesModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
       
       <DialogContent sx={{ p: 4 }}>
         <Grid container spacing={3} sx={{ mt: 1 }}>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField 
               select 
               label={fetchingClients ? "Loading Clients..." : "Select Client"} 
@@ -119,15 +120,15 @@ const CreateInvoicesModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
             </TextField>
           </Grid>
           
-          <Grid item xs={6} md={3}>
+          <Grid size={{ xs: 6, md: 3 }}>
             <TextField label="Issue Date" type="date" fullWidth value={issueDate} onChange={(e) => setIssueDate(e.target.value)} InputLabelProps={{ shrink: true }} />
           </Grid>
-          <Grid item xs={6} md={3}>
+          <Grid size={{ xs: 6, md: 3 }}>
             <TextField label="Due Date" type="date" fullWidth value={dueDate} onChange={(e) => setDueDate(e.target.value)} InputLabelProps={{ shrink: true }} />
           </Grid>
 
           {/* Line Items Table */}
-          <Grid item xs={12}>
+          <Grid size={{ xs:12 }}>
             <TableContainer sx={{ border: '1px solid #eee', borderRadius: 2 }}>
               <Table size="small">
                 <TableHead sx={{ bgcolor: '#f8fafc' }}>
@@ -158,7 +159,7 @@ const CreateInvoicesModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
           </Grid>
 
           {/* Totals Section */}
-          <Grid item xs={12} md={5} sx={{ ml: 'auto' }}>
+          <Grid size={{ xs: 12, md: 5 }} sx={{ ml: 'auto' }}>
             <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}><Typography variant="body2">Subtotal</Typography><Typography variant="body2">${subtotal.toFixed(2)}</Typography></Box>
                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}><Typography variant="body2">Tax (%)</Typography><TextField size="small" type="number" sx={{ width: 60 }} variant="standard" value={taxRate} onChange={(e) => setTaxRate(parseFloat(e.target.value))} /></Box>

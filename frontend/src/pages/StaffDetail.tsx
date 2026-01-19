@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -165,7 +165,7 @@ const StaffDetail = () => {
           <Paper>
             <TabContext value={tab}>
               <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                <TabList onChange={(e, v) => setTab(v)}>
+                <TabList onChange={(_, v) => setTab(v)}>
                   <Tab label="Biography" value="1" />
                   <Tab label="Current Engagements" value="2" />
                   <Tab label="Access Log" value="3" />

@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Paper,
   Typography,
   Box,
   Button,
-  Grid,
   Card,
   CardContent,
   IconButton,
@@ -15,6 +14,7 @@ import {
   DialogActions,
   Chip,
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import {
   UploadFile,
   Download,
@@ -140,7 +140,7 @@ const ClientDocuments = ({ clientId }: { clientId: number }) => {
       ) : (
         <Grid container spacing={2}>
           {docs.map(doc => (
-            <Grid item xs={12} md={6} lg={4} key={doc.id}>
+            <Grid size={{ xs: 12, md: 6, lg: 4 }} key={doc.id}>
               <Card sx={{ borderRadius: 2, '&:hover': { boxShadow: 4 } }}>
                 <CardContent>
                   <Box sx={{ display: 'flex', mb: 2 }}>

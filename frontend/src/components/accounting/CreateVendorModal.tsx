@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Modal, Box, Typography, TextField, Button, Grid } from '@mui/material';
 import api from '../../api';
 
@@ -47,16 +47,16 @@ const CreateVendorModal = ({ open, onClose, onSuccess }: any) => {
       }}>
         <Typography variant="h6" fontWeight={700} mb={3}>Add New Vendor</Typography>
         <Grid container spacing={2}>
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <TextField label="Vendor Name" fullWidth value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
           </Grid>
-          <Grid item xs={6}>
+          <Grid size={{ xs: 6 }}>
             <TextField label="Email" fullWidth value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
           </Grid>
-          <Grid item xs={6}>
+          <Grid size={{ xs: 6 }}>
             <TextField label="Tax ID / VAT" fullWidth value={formData.tax_id} onChange={(e) => setFormData({...formData, tax_id: e.target.value})} />
           </Grid>
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <TextField label="Address" multiline rows={2} fullWidth value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} />
           </Grid>
         </Grid>

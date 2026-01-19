@@ -17,7 +17,7 @@ import Settings from './pages/Settings';
 // Auth Import
 import Login from './pages/Login';
 
-// Portal Imports (All in pages/ as requested)
+// Portal Imports
 import PortalLayout from './pages/PortalLayout';
 import PortalDashboard from './pages/PortalDashboard';
 import PortalVault from './pages/PortalVault';
@@ -38,7 +38,7 @@ function App() {
 
         {/* -------------------------------------------------------------------
             CLIENT PORTAL ROUTES 
-            (Completely separate from Staff Dashboard to ensure distinct UX)
+            Moved "Client Engagements" inside here to distinguish from Staff
         -------------------------------------------------------------------- */}
         <Route 
           path="/portal" 
@@ -53,14 +53,18 @@ function App() {
           
           <Route path="overview" element={<PortalDashboard />} />
           <Route path="documents" element={<PortalVault />} />
+          
+          {/* --- MOVED HERE: Client View of Engagements --- */}
+          {/* These will now be accessed via /portal/engagements */}
+          <Route path="engagements" element={<Engagements />} /> 
+          <Route path="engagements/:id" element={<EngagementWorkspace />} />
+
           <Route path="billing" element={
             <div style={{ padding: 40, textAlign: 'center', color: '#666' }}>
               Billing Module Coming Soon
             </div>
           } />
         </Route>
-        <Route path="engagements" element={<Engagements />} />
-        <Route path="engagements/:id" element={<EngagementWorkspace />} />
 
         {/* -------------------------------------------------------------------
             STAFF / INTERNAL DASHBOARD ROUTES
@@ -80,11 +84,11 @@ function App() {
           <Route path="dashboard" element={<DashboardOverview />} />
           <Route path="clients" element={<Clients />} />
           <Route path="clients/:id" element={<ClientDetail />} />
+          
+          {/* Staff View of Engagements (Accessed via /engagements) */}
           <Route path="engagements" element={<Engagements />} />
           <Route path="engagements/:id" element={<EngagementWorkspace />} />
           
-          {/* Accounting handles its own sub-routes via wildcard in the component or nested routes here. 
-              If Accounting.tsx uses <Outlet/>, keep '/*' */}
           <Route path="/accounting/*" element={<Accounting />} />
           
           <Route path="staff" element={<StaffManagement />} />

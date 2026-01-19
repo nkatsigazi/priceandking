@@ -1,4 +1,3 @@
-import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import AccountingOverview from '../components/accounting/AccountingOverview';
 import InvoicesPage from '../components/accounting/InvoicesPage';

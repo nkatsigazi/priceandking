@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Paper, Typography, Box, Chip, Avatar, CircularProgress, Tooltip } from '@mui/material';
 import { Timeline, TimelineItem, TimelineSeparator, TimelineConnector, TimelineContent, TimelineDot, TimelineOppositeContent } from '@mui/lab';
-import { History, Description, Assignment, BusinessCenter, TaskAlt, DeleteForever, Info } from '@mui/icons-material';
+import { Description, Assignment, TaskAlt, DeleteForever, Info } from '@mui/icons-material';
 import api from '../api';
 
 const EngagementHistory = ({ engagementId }: { engagementId: string }) => {

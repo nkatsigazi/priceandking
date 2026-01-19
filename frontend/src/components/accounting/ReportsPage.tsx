@@ -1,26 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  Box,
-  Typography,
-  Grid,
-  Paper,
-  Tabs,
-  Tab,
-  Button,
-  Skeleton,
-  Stack,
-  Divider,
-  Alert,
-  alpha,
-  useTheme,
+  Box, Typography, Grid, Paper, Tabs,
+  Tab, Button, Skeleton, Stack, Alert,
+  alpha, useTheme,
 } from '@mui/material';
 import {
-  TrendingUp,
-  AccountBalanceWallet,
-  Print,
-  PictureAsPdf,
-  CheckCircle,
-  Error as ErrorIcon,
+  TrendingUp, AccountBalanceWallet, Print,
+  PictureAsPdf, CheckCircle, Error as ErrorIcon,
 } from '@mui/icons-material';
 import api from '../../api';
 
@@ -104,7 +90,7 @@ const ReportsPage = () => {
     <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1400, mx: 'auto', minHeight: '100vh' }}>
       {/* Header */}
       <Paper
-y        sx={{
+        sx={{
           mb: 4,
           bgcolor: '#00000000',
           border: `0px solid #00000000`,
@@ -115,8 +101,7 @@ y        sx={{
           justifyContent="space-between"
           alignItems={{ xs: 'flex-start', sm: 'center' }}
           spacing={3}
-
-y        >
+        >
           <Box>
             <Typography variant="h4" fontWeight={800} color="#931111">
               Financial Statements

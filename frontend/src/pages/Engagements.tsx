@@ -1,28 +1,42 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Box, Typography, Button, Grid, Paper, Table, TableBody,
+  Box, Typography, Button, Paper, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow,
   Chip, LinearProgress, TextField, InputAdornment,
   MenuItem, Stack, IconButton, Tooltip, Dialog, DialogTitle, 
-  DialogContent, DialogActions
+  DialogContent, DialogActions, Skeleton
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import {
-  Search, Add, Visibility, FilterList, 
-  Event, Business, TrendingUp, MonetizationOn,
-   Launch, PostAdd
+  Search, Visibility, Business, TrendingUp, Add
 } from '@mui/icons-material';
 import api from '../api';
 
-const Engagements = ({ clientId }: { clientId: number }) => {
+// 1. Define Props with optional clientId
+interface EngagementsProps {
+  clientId?: number; 
+}
+
+const Engagements = ({ clientId }: EngagementsProps) => {
   const navigate = useNavigate();
   const [engagements, setEngagements] = useState<any[]>([]);
+  
+  // State for fetching clients (needed for the dropdown if clientId is missing)
+  const [clients, setClients] = useState<any[]>([]); 
+  
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-    const [newEng, setNewEng] = useState({ 
-        name: '', year: new Date().getFullYear(), engagement_type: 'AUDIT', status: 'PLANNING', fee: '' 
-    });
   
+  // 2. Add client_id to the form state
+  const [newEng, setNewEng] = useState({ 
+      name: '', 
+      year: new Date().getFullYear(), 
+      engagement_type: 'AUDIT', 
+      status: 'PLANNING', 
+      fee: '',
+      client_id: clientId || '' // Default to prop if exists
+  });
   
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -30,6 +44,7 @@ const Engagements = ({ clientId }: { clientId: number }) => {
 
   const fetchEngagements = async () => {
     try {
+      setLoading(true);
       const res = await api.get('engagements/');
       setEngagements(res.data);
     } catch (err) {
@@ -39,25 +54,53 @@ const Engagements = ({ clientId }: { clientId: number }) => {
     }
   };
 
-  useEffect(() => {
-    fetchEngagements();
-  }, []);
-
-  const handleSave = async () => {
-    await api.post('engagements/', { ...newEng, client: clientId });
-    setOpen(false);
-    fetchEngagements();
+  // 3. Fetch Clients list only if we are in Global Mode (no clientId prop)
+  const fetchClients = async () => {
+    try {
+      const res = await api.get('clients/');
+      setClients(res.data);
+    } catch (err) {
+      console.error("Failed to fetch clients", err);
+    }
   };
 
-  const handleCreateFromTemplate = async () => {
+  useEffect(() => {
+    fetchEngagements();
+    if (!clientId) {
+      fetchClients();
+    }
+  }, [clientId]);
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (open) {
+      setNewEng({
+        name: '', 
+        year: new Date().getFullYear(), 
+        engagement_type: 'AUDIT', 
+        status: 'PLANNING', 
+        fee: '',
+        client_id: clientId || '' 
+      });
+    }
+  }, [open, clientId]);
+
+  const handleSave = async () => {
+    // 4. Validate that a client is selected
+    const finalClientId = clientId || newEng.client_id;
+    
+    if (!finalClientId) {
+      alert("Please select a client");
+      return;
+    }
+
     try {
-        // MATCHING THE BACKEND 'client_id' EXPECTATION
-        await api.post('engagements/create_from_template/', {
-            client_id: clientId,
-            year: newEng.year
-        });
-        fetchEngagements();
-    } catch (err) { console.error(err); }
+      await api.post('engagements/', { ...newEng, client: finalClientId });
+      setOpen(false);
+      fetchEngagements();
+    } catch (err) {
+      console.error("Failed to create engagement", err);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -70,12 +113,19 @@ const Engagements = ({ clientId }: { clientId: number }) => {
     }
   };
 
-  const filteredEngagements = engagements.filter(e => {
-    const matchesSearch = e.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          e.client_name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "ALL" || e.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  // 5. Update Filter Logic to respect clientId prop
+  const filteredEngagements = useMemo(() => {
+    return engagements.filter(e => {
+      // If clientId prop exists, only show engagements for that client
+      if (clientId && e.client !== clientId) return false;
+
+      const matchesSearch = e.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            e.client_name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === "ALL" || e.status === statusFilter;
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [engagements, searchTerm, statusFilter, clientId]);
 
   return (
     <Box sx={{ p: 4, maxWidth: 1600, margin: '0 auto' }}>
@@ -84,46 +134,39 @@ const Engagements = ({ clientId }: { clientId: number }) => {
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <Box>
           <Typography variant="h4" fontWeight="bold" sx={{ color: '#931111', mb: 1 }}>
-            Engagement Workspace
+            {clientId ? 'Client Engagements' : 'Engagement Workspace'}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Manage active audits, tax preparations, and advisory projects across all clients.
+            Manage active audits, tax preparations, and advisory projects.
           </Typography>
         </Box>
-        {/*<Box sx={{ gap: 2, display: 'flex' }}>
-            <Button 
-                startIcon={<PostAdd />} 
-                variant="contained" 
-                color="secondary"
-                onClick={handleCreateFromTemplate}
-            >
-                Start Audit (Template)
+        <Box>
+            <Button startIcon={<Add />} variant="contained" onClick={() => setOpen(true)}>
+                New Engagement
             </Button>
-            
-            <Button startIcon={<Add />} variant="outlined" onClick={() => setOpen(true)}>
-                Empty Engagement
-            </Button>
-        </Box>*/}
+        </Box>
       </Box>
 
-      {/* STATS OVERVIEW */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        {[
-          { label: 'Active Projects', count: engagements.length, icon: <TrendingUp />, color: '#1976d2' },
-          { label: 'In Fieldwork', count: engagements.filter(e => e.status === 'FIELDWORK').length, icon: <Business />, color: '#ef6c00' },
-          { label: 'Pending Review', count: engagements.filter(e => e.status === 'REVIEW').length, icon: <Visibility />, color: '#9c27b0' },
-        ].map((stat, i) => (
-          <Grid size={{ xs: 12, md: 4 }} key={i}>
-            <Paper sx={{ p: 3, borderRadius: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: `${stat.color}15`, color: stat.color }}>{stat.icon}</Avatar>
-              <Box>
-                <Typography variant="caption" color="text.secondary" fontWeight="bold">{stat.label.toUpperCase()}</Typography>
-                <Typography variant="h5" fontWeight="bold">{stat.count}</Typography>
-              </Box>
-            </Paper>
-          </Grid>
-        ))}
-      </Grid>
+      {/* STATS OVERVIEW - Only show if in Global View (optional preference) */}
+      {!clientId && (
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          {[
+            { label: 'Active Projects', count: engagements.length, icon: <TrendingUp />, color: '#1976d2' },
+            { label: 'In Fieldwork', count: engagements.filter(e => e.status === 'FIELDWORK').length, icon: <Business />, color: '#ef6c00' },
+            { label: 'Pending Review', count: engagements.filter(e => e.status === 'REVIEW').length, icon: <Visibility />, color: '#9c27b0' },
+          ].map((stat, i) => (
+            <Grid size={{ xs: 12, md: 4 }} key={i}>
+              <Paper sx={{ p: 3, borderRadius: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar sx={{ bgcolor: `${stat.color}15`, color: stat.color }}>{stat.icon}</Avatar>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" fontWeight="bold">{stat.label.toUpperCase()}</Typography>
+                  <Typography variant="h5" fontWeight="bold">{loading ? <Skeleton width={30}/> : stat.count}</Typography>
+                </Box>
+              </Paper>
+            </Grid>
+          ))}
+        </Grid>
+      )}
 
       {/* FILTER BAR */}
       <Paper sx={{ p: 2, mb: 3, borderRadius: 3, border: '1px solid #eee', boxShadow: 'none' }}>
@@ -173,7 +216,11 @@ const Engagements = ({ clientId }: { clientId: number }) => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredEngagements.map((engagement) => (
+            {loading ? (
+                [1,2,3].map(i => (
+                    <TableRow key={i}><TableCell colSpan={6}><Skeleton height={50} /></TableCell></TableRow>
+                ))
+            ) : filteredEngagements.map((engagement) => (
               <TableRow key={engagement.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                 <TableCell>
                   <Typography fontWeight="bold" color="text.secondary">{engagement.year}</Typography>
@@ -230,7 +277,7 @@ const Engagements = ({ clientId }: { clientId: number }) => {
                 </TableCell>
               </TableRow>
             ))}
-            {filteredEngagements.length === 0 && (
+            {!loading && filteredEngagements.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
                   <Typography color="text.secondary">No engagements found matching your criteria.</Typography>
@@ -241,20 +288,43 @@ const Engagements = ({ clientId }: { clientId: number }) => {
         </Table>
       </TableContainer>
 
+      {/* CREATE DIALOG */}
       <Dialog open={open} onClose={() => setOpen(false)}>
         <DialogTitle>Start New Engagement</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1, minWidth: 400 }}>
+            {/* 6. Conditionally render Client Select if clientId prop is missing */}
+            {!clientId && (
+                <TextField 
+                    select 
+                    label="Client" 
+                    fullWidth 
+                    value={newEng.client_id}
+                    onChange={e => setNewEng({...newEng, client_id: e.target.value})}
+                >
+                    {clients.map(client => (
+                        <MenuItem key={client.id} value={client.id}>
+                            {client.name}
+                        </MenuItem>
+                    ))}
+                </TextField>
+            )}
+
             <TextField label="Engagement Name" fullWidth 
+                value={newEng.name}
                 onChange={e => setNewEng({...newEng, name: e.target.value})} />
+            
             <TextField label="Year" type="number" fullWidth value={newEng.year} 
                 onChange={e => setNewEng({...newEng, year: parseInt(e.target.value)})} />
+            
             <TextField select label="Type" value={newEng.engagement_type} 
                 onChange={e => setNewEng({...newEng, engagement_type: e.target.value})}>
                 <MenuItem value="AUDIT">Audit</MenuItem>
                 <MenuItem value="TAX">Tax</MenuItem>
                 <MenuItem value="ADVISORY">Advisory</MenuItem>
             </TextField>
+            
             <TextField label="Fee Estimate" type="number" fullWidth 
+                value={newEng.fee}
                 onChange={e => setNewEng({...newEng, fee: e.target.value})} />
         </DialogContent>
         <DialogActions>

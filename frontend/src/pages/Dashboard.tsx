@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Box, CssBaseline, Drawer, AppBar, Toolbar, List, Typography, 
   Divider, ListItem, ListItemButton, ListItemIcon, ListItemText, 
@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import { 
   Dashboard as DashIcon, People, AccountBalance, Logout, Security,
-  ExpandLess, ExpandMore, FolderShared, Assignment, PersonAdd, Settings, Group,
+  ExpandLess, ExpandMore, FolderShared, Assignment, Settings, Group,
   QueryStats, ReceiptLong, Wallet, Description
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';

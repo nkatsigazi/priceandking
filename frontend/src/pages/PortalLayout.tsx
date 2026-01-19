@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
     Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, 
     Typography, Avatar, Divider, Drawer, Badge, IconButton 
 } from '@mui/material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
-    Dashboard, FolderCopy, ReceiptLong, Logout, 
-    ChatBubbleOutline, SupportAgent, Security 
+    Dashboard, FolderCopy, Logout, 
+    ChatBubbleOutline, Security 
 } from '@mui/icons-material';
 import Logo from '../assets/logo-white.svg';
 
