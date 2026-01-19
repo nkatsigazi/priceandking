@@ -1,0 +1,1257 @@
+config/settings
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    # Third party apps
+    'rest_framework',
+    'corsheaders', 
+    'core',
+    'crm',
+    'accounting',
+]
+
+
+config/urls
+from django.contrib import admin
+from django.urls import path, include
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
+from rest_framework.routers import DefaultRouter
+from core.views import StaffManageViewSet
+from accounting.views import AccountViewSet, InvoiceViewSet
+from crm.views import ClientViewSet, ClientContactViewSet, EngagementViewSet, ClientDocumentViewSet, ClientNoteViewSet
+from django.conf import settings
+from django.conf.urls.static import static
+
+router = DefaultRouter()
+router.register(r'staff', StaffManageViewSet, basename='staff')
+router.register(r'accounts', AccountViewSet, basename='accounts')
+router.register(r'invoices', InvoiceViewSet, basename='invoices')
+router.register(r'clients', ClientViewSet, basename='client')
+router.register(r'client-contacts', ClientContactViewSet, basename='client-contacts')
+router.register(r'engagements', EngagementViewSet, basename='engagements')
+router.register(r'documents', ClientDocumentViewSet, basename='documents')
+router.register(r'notes', ClientNoteViewSet, basename='notes')
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('api/', include(router.urls)),
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'), # Login URL
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+crm/models
+from django.db import models
+from django.conf import settings
+
+class Client(models.Model):
+    ENTITY_CHOICES = [
+        ('INDIVIDUAL', 'Individual'),
+        ('LLC', 'Limited Liability Company'),
+        ('CORP', 'Corporation'),
+        ('PARTNERSHIP', 'Partnership'),
+        ('NGO', 'Non-Profit'),
+    ]
+
+    name = models.CharField(max_length=255)
+    tax_id_number = models.CharField(max_length=50, unique=True)
+    entity_type = models.CharField(max_length=20, choices=ENTITY_CHOICES, default='LLC')
+    industry = models.CharField(max_length=100, blank=True)
+    assigned_partner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='managed_clients'
+    )
+    fiscal_year_end = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+
+class ClientContact(models.Model):
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='contacts')
+    name = models.CharField(max_length=100)
+    email = models.EmailField()
+    phone = models.CharField(max_length=20, blank=True)
+    is_primary = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.name} ({self.client.name})"
+
+class ClientNote(models.Model):
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='notes')
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='replies')
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Note by {self.author} on {self.created_at}"
+
+class Engagement(models.Model):
+    STATUS_CHOICES = [
+        ('PLANNING', 'Planning'),
+        ('FIELDWORK', 'Fieldwork'),
+        ('REVIEW', 'Partner Review'),
+        ('COMPLETED', 'Completed'),
+        ('ARCHIVED', 'Archived'),
+    ]
+    TYPE_CHOICES = [
+        ('AUDIT', 'Audit'),
+        ('TAX', 'Tax Preparation'),
+        ('ADVISORY', 'Advisory'),
+    ]
+
+    # Expanded Fields for "World Class" Audit tracking
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='engagements')
+    name = models.CharField(max_length=200)
+    engagement_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='AUDIT')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PLANNING')
+    
+    # New Fields
+    start_date = models.DateField(null=True, blank=True)
+    deadline = models.DateField(null=True, blank=True)
+    lead_auditor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='led_engagements')
+    methodology = models.CharField(max_length=100, default='Standard Audit', help_text="e.g. GAAP, IFRS")
+    completion_percentage = models.IntegerField(default=0) # Denormalized for dashboard speed
+
+    year = models.IntegerField(default=2024)
+    fee = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def update_progress(self):
+        # Helper to auto-calculate progress based on tasks
+        total = self.tasks.count()
+        if total == 0: return
+        completed = self.tasks.filter(status='DONE').count()
+        self.completion_percentage = int((completed / total) * 100)
+        self.save()
+
+class EngagementTask(models.Model):
+    TASK_STATUS = [
+        ('PENDING', 'Pending'),
+        ('IN_PROGRESS', 'In Progress'),
+        ('REVIEW', 'In Review'),
+        ('DONE', 'Done'),
+    ]
+    
+    engagement = models.ForeignKey(Engagement, on_delete=models.CASCADE, related_name='tasks')
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=TASK_STATUS, default='PENDING')
+    is_milestone = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.engagement.update_progress()
+
+class ClientDocument(models.Model):
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='documents')
+    # Link document to a specific engagement (optional)
+    engagement = models.ForeignKey('Engagement', on_delete=models.CASCADE, null=True, blank=True, related_name='documents') 
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    file = models.FileField(upload_to='client_docs/%Y/%m/')
+    description = models.CharField(max_length=255)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.description
+
+crm/permissions
+from rest_framework.permissions import BasePermission
+
+class IsPartnerOrAdmin(BasePermission):
+    """
+    Partners can only see their clients.
+    Admins can see everything.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        if request.user.is_superuser:
+            return True
+        return obj.assigned_partner == request.user
+
+
+crm/serializers
+from rest_framework import serializers
+from django.db import transaction
+from .models import Client, ClientContact, ClientNote, Engagement, EngagementTask, ClientDocument
+from core.serializers import UserSerializer
+
+class ClientContactSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClientContact
+        fields = ['id', 'client', 'name', 'email', 'phone', 'is_primary']
+
+    def validate(self, data):
+        if data.get('is_primary'):
+            exists = ClientContact.objects.filter(
+                client=data['client'],
+                is_primary=True
+            ).exists()
+            if exists:
+                raise serializers.ValidationError(
+                    "This client already has a primary contact."
+                )
+        return data
+
+class ClientNoteSerializer(serializers.ModelSerializer):
+    author_name = serializers.ReadOnlyField(source='author.username')
+    replies = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ClientNote
+        fields = ['id', 'client', 'content', 'created_at', 'author', 'author_name', 'parent', 'replies']
+        read_only_fields = ['created_at', 'author']
+
+    def get_replies(self, obj):
+        # Recursive serialization for threads
+        if obj.replies.exists():
+            return ClientNoteSerializer(obj.replies.all(), many=True).data
+        return []
+
+class EngagementTaskSerializer(serializers.ModelSerializer):
+    assignee_name = serializers.ReadOnlyField(source='assigned_to.username')
+    
+    class Meta:
+        model = EngagementTask
+        fields = '__all__'
+
+class EngagementSerializer(serializers.ModelSerializer):
+    task_count = serializers.SerializerMethodField()
+    client_name = serializers.ReadOnlyField(source='client.name')
+    
+    class Meta:
+        model = Engagement
+        fields = '__all__'
+        
+    def get_task_count(self, obj):
+        return obj.tasks.count()
+
+class ClientDocumentSerializer(serializers.ModelSerializer):
+    uploader_name = serializers.ReadOnlyField(source='uploaded_by.username')
+    file_name = serializers.ReadOnlyField(source='file.name')
+
+    class Meta:
+        model = ClientDocument
+        fields = ['id', 'client', 'engagement', 'file', 'description', 'uploaded_at', 'uploaded_by', 'uploader_name', 'file_name']
+        read_only_fields = ['uploaded_at', 'uploaded_by']
+
+class ClientSerializer(serializers.ModelSerializer):
+    partner = UserSerializer(source='assigned_partner', read_only=True)
+    
+    class Meta:
+        model = Client
+        fields = '__all__'
+        read_only_fields = ['created_at']
+
+
+crm/views
+from django.shortcuts import render
+from rest_framework import viewsets, permissions, filters, parsers
+from .models import Client, ClientContact, Engagement, ClientDocument, ClientNote
+from .serializers import ClientSerializer, ClientContactSerializer, EngagementSerializer, ClientDocumentSerializer, ClientNoteSerializer
+from .permissions import IsPartnerOrAdmin
+
+class ClientViewSet(viewsets.ModelViewSet):
+    serializer_class = ClientSerializer
+    permission_classes = [permissions.IsAuthenticated, IsPartnerOrAdmin]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name', 'tax_id_number']
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return Client.objects.all().order_by('name')
+        return Client.objects.filter(assigned_partner=user).order_by('name')
+
+    def perform_create(self, serializer):
+        serializer.save(assigned_partner=self.request.user)
+
+class ClientContactViewSet(viewsets.ModelViewSet):
+    serializer_class = ClientContactSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        client_id = self.request.query_params.get('client')
+        return ClientContact.objects.filter(client_id=client_id)
+
+class EngagementViewSet(viewsets.ModelViewSet):
+    serializer_class = EngagementSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        client_id = self.request.query_params.get('client')
+        if client_id:
+            return Engagement.objects.filter(client_id=client_id).order_by('-year')
+        return Engagement.objects.all()
+
+class ClientNoteViewSet(viewsets.ModelViewSet):
+    serializer_class = ClientNoteSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        client_id = self.request.query_params.get('client')
+        if client_id:
+            return ClientNote.objects.filter(client_id=client_id).order_by('-created_at')
+        return ClientNote.objects.none()
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
+
+class ClientDocumentViewSet(viewsets.ModelViewSet):
+    serializer_class = ClientDocumentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser]
+
+    def get_queryset(self):
+        queryset = ClientDocument.objects.all().order_by('-uploaded_at')
+        
+        # Filter 1: Specific Engagement Documents (Workspace)
+        engagement_id = self.request.query_params.get('engagement')
+        if engagement_id:
+            return queryset.filter(engagement_id=engagement_id)
+        
+        # Filter 2: General Client Documents (Exclude engagement-specific workpapers)
+        client_id = self.request.query_params.get('client')
+        if client_id:
+            return queryset.filter(client_id=client_id, engagement__isnull=True)
+            
+        return ClientDocument.objects.none()
+
+    def perform_create(self, serializer):
+        serializer.save(uploaded_by=self.request.user)
+
+
+frontend/src/components
+import React, { useState } from 'react';
+import { 
+  Paper, Typography, Box, Grid, Chip, Button, IconButton, 
+  Dialog, DialogTitle, DialogContent, TextField, DialogActions, MenuItem 
+} from '@mui/material';
+import { Edit, Business, CalendarToday, Person } from '@mui/icons-material';
+import api from '../api';
+
+const ClientOverview = ({ client, onUpdate }: { client: any, onUpdate: () => void }) => {
+  const [open, setOpen] = useState(false);
+  const [formData, setFormData] = useState<any>({});
+
+  const handleEdit = () => {
+    setFormData(client);
+    setOpen(true);
+  };
+
+  const handleSave = async () => {
+    await api.patch(`clients/${client.id}/`, formData);
+    setOpen(false);
+    onUpdate();
+  };
+
+  const InfoRow = ({ icon, label, value }: any) => (
+    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+      <Box sx={{ color: 'text.secondary', mr: 2 }}>{icon}</Box>
+      <Box>
+        <Typography variant="caption" color="text.secondary">{label}</Typography>
+        <Typography variant="body1" fontWeight="500">{value || '-'}</Typography>
+      </Box>
+    </Box>
+  );
+
+  return (
+    <>
+      <Paper sx={{ p: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+          <Typography variant="h6" fontWeight="bold">Client Overview</Typography>
+          <IconButton size="small" onClick={handleEdit}><Edit /></IconButton>
+        </Box>
+
+        <InfoRow icon={<Business />} label="Entity Type" value={client.entity_type} />
+        <InfoRow icon={<Person />} label="Assigned Partner" value={client.partner?.username || 'Unassigned'} />
+        <InfoRow icon={<CalendarToday />} label="Fiscal Year End" value={client.fiscal_year_end} />
+        
+        <Box sx={{ mt: 2 }}>
+            <Typography variant="caption" color="text.secondary">Status</Typography>
+            <Box sx={{ mt: 1 }}>
+                <Chip 
+                    label={client.is_active ? "Active Client" : "Inactive"} 
+                    color={client.is_active ? "success" : "default"} 
+                    size="small" 
+                />
+            </Box>
+        </Box>
+      </Paper>
+
+      {/* Edit Dialog */}
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Edit Client Details</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            <TextField label="Name" fullWidth value={formData.name || ''} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+            <TextField label="Tax ID" fullWidth value={formData.tax_id_number || ''} onChange={(e) => setFormData({...formData, tax_id_number: e.target.value})} />
+            <TextField 
+                select 
+                label="Entity Type" 
+                fullWidth
+                value={formData.entity_type || 'LLC'} 
+                onChange={(e) => setFormData({...formData, entity_type: e.target.value})}
+            >
+                <MenuItem value="INDIVIDUAL">Individual</MenuItem>
+                <MenuItem value="LLC">LLC</MenuItem>
+                <MenuItem value="CORP">Corporation</MenuItem>
+                <MenuItem value="PARTNERSHIP">Partnership</MenuItem> {/* Added */}
+                <MenuItem value="NGO">Non-Profit (NGO)</MenuItem>   {/* Added */}
+            </TextField>
+            <TextField label="Fiscal Year End" type="date" InputLabelProps={{ shrink: true }} value={formData.fiscal_year_end || ''} onChange={(e) => setFormData({...formData, fiscal_year_end: e.target.value})} />
+        </DialogContent>
+        <DialogActions>
+            <Button onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={handleSave} variant="contained">Save Changes</Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
+};
+
+export default ClientOverview;
+
+
+EngagementOverview
+import React, { useState } from 'react';
+import { 
+  Paper, Typography, Box, Chip, Button, 
+  Dialog, DialogTitle, DialogContent, TextField, DialogActions, 
+  MenuItem, Divider
+} from '@mui/material';
+import Grid from '@mui/material/Grid';
+import { 
+    Edit, EventNote, Payments, Rule, 
+    AssignmentInd, QueryStats 
+} from '@mui/icons-material';
+import api from '../api';
+
+const EngagementOverview = ({ data, onUpdate }: any) => {
+  const [open, setOpen] = useState(false);
+  const [formData, setFormData] = useState(data);
+
+  const handleSave = async () => {
+    try {
+        await api.patch(`engagements/${data.id}/`, formData);
+        setOpen(false);
+        onUpdate(); 
+    } catch (err) {
+        console.error("Save failed", err);
+    }
+  };
+
+  const StatBox = ({ label, value, icon, color }: any) => (
+    <Paper variant="outlined" sx={{ p: 2, flex: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Box sx={{ p: 1, borderRadius: 2, bgcolor: `${color}.lighter`, color: `${color}.main`, display: 'flex' }}>
+            {icon}
+        </Box>
+        <Box>
+            <Typography variant="caption" color="text.secondary" display="block">{label}</Typography>
+            <Typography variant="subtitle1" fontWeight="bold">{value || 'Not Set'}</Typography>
+        </Box>
+    </Paper>
+  );
+
+  return (
+    <Box>
+        <Grid container spacing={3}>
+            {/* Main Details Card */}
+            <Grid size={{ xs: 12, md: 8 }}>
+                <Paper sx={{ p: 3 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+                        <Typography variant="h6" fontWeight="bold">Audit Summary</Typography>
+                        <Button startIcon={<Edit />} size="small" onClick={() => setOpen(true)}>Edit Details</Button>
+                    </Box>
+                    
+                    <Typography variant="body1" sx={{ mb: 2 }}>
+                        This {data.engagement_type.toLowerCase()} engagement for <strong>{data.client_name}</strong> covers 
+                        the fiscal period of {data.year}. Current methodology applied is <strong>{data.methodology}</strong>.
+                    </Typography>
+
+                    <Divider sx={{ my: 3 }} />
+
+                    <Grid container spacing={2}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                            <StatBox label="Budgeted Fee" value={`$${data.fee}`} icon={<Payments />} color="primary" />
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                            <StatBox label="Methodology" value={data.methodology} icon={<Rule />} color="secondary" />
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                            <StatBox label="Fiscal Year" value={data.year} icon={<EventNote />} color="info" />
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                            <StatBox label="Lead Auditor" value={data.lead_auditor_name || 'Unassigned'} icon={<AssignmentInd />} color="success" />
+                        </Grid>
+                    </Grid>
+                </Paper>
+            </Grid>
+
+            {/* Side Progress Card */}
+            <Grid size={{ xs: 12, md: 4 }}>
+                <Paper sx={{ p: 3, textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <QueryStats sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
+                    <Typography variant="h3" fontWeight="bold" color="primary">
+                        {data.completion_percentage}%
+                    </Typography>
+                    <Typography color="text.secondary" sx={{ mb: 2 }}>Audit Completion</Typography>
+                    <Box sx={{ px: 4 }}>
+                        <Button fullWidth variant="contained" color="primary" onClick={() => {/* navigate to tasks */}}>
+                            Review Checklist
+                        </Button>
+                    </Box>
+                </Paper>
+            </Grid>
+        </Grid>
+
+        {/* Edit Modal */}
+        <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs">
+            <DialogTitle>Update Engagement</DialogTitle>
+            <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+                <TextField 
+                    label="Engagement Name" 
+                    fullWidth 
+                    value={formData.name} 
+                    onChange={e => setFormData({...formData, name: e.target.value})} 
+                />
+                <TextField 
+                    label="Methodology" 
+                    fullWidth 
+                    value={formData.methodology} 
+                    onChange={e => setFormData({...formData, methodology: e.target.value})} 
+                />
+                <TextField 
+                    label="Fee" 
+                    type="number"
+                    fullWidth 
+                    value={formData.fee} 
+                    onChange={e => setFormData({...formData, fee: e.target.value})} 
+                />
+                <TextField 
+                    select 
+                    label="Status" 
+                    fullWidth 
+                    value={formData.status} 
+                    onChange={e => setFormData({...formData, status: e.target.value})}
+                >
+                    <MenuItem value="PLANNING">Planning</MenuItem>
+                    <MenuItem value="FIELDWORK">Fieldwork</MenuItem>
+                    <MenuItem value="REVIEW">Final Review</MenuItem>
+                    <MenuItem value="COMPLETED">Completed</MenuItem>
+                </TextField>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={() => setOpen(false)}>Cancel</Button>
+                <Button onClick={handleSave} variant="contained">Save Changes</Button>
+            </DialogActions>
+        </Dialog>
+    </Box>
+  );
+};
+
+export default EngagementOverview;
+
+
+
+Engagements
+import React, { useEffect, useState } from 'react';
+import { 
+  Paper, Typography, Box, Button, Table, TableHead, TableRow, TableCell, TableBody, Chip,
+  Dialog, DialogTitle, DialogContent, TextField, DialogActions, MenuItem
+} from '@mui/material';
+import { Add, Launch } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
+import api from '../api';
+
+const Engagements = ({ clientId }: { clientId: number }) => {
+  const [engagements, setEngagements] = useState([]);
+  const [open, setOpen] = useState(false);
+  // Default new engagement state
+  const [newEng, setNewEng] = useState({ 
+      name: '', year: new Date().getFullYear(), engagement_type: 'AUDIT', status: 'PLANNING', fee: '' 
+  });
+  
+  const navigate = useNavigate(); // Hook for navigation
+
+  const fetchEngagements = async () => {
+    const res = await api.get(`engagements/?client=${clientId}`);
+    setEngagements(res.data);
+  };
+
+  useEffect(() => { fetchEngagements(); }, [clientId]);
+
+  const handleSave = async () => {
+    await api.post('engagements/', { ...newEng, client: clientId });
+    setOpen(false);
+    fetchEngagements();
+  };
+
+  const getStatusColor = (status: string) => {
+      if (status === 'COMPLETED') return 'success';
+      if (status === 'FIELDWORK') return 'warning';
+      return 'default';
+  };
+
+  return (
+    <Paper sx={{ p: 3, mt: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h6" fontWeight="bold">Engagements</Typography>
+        <Button startIcon={<Add />} size="small" variant="outlined" onClick={() => setOpen(true)}>
+            New Engagement
+        </Button>
+      </Box>
+
+      <Table size="small">
+        <TableHead>
+            <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Year</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Fee</TableCell>
+                <TableCell></TableCell> {/* Arrow Icon Column */}
+            </TableRow>
+        </TableHead>
+        <TableBody>
+            {engagements.map((eng: any) => (
+                <TableRow 
+                    key={eng.id} 
+                    hover 
+                    onClick={() => navigate(`/engagements/${eng.id}`)} // CLICKABLE ROW
+                    sx={{ cursor: 'pointer', '&:hover': { bgcolor: '#f5f5f5' } }}
+                >
+                    <TableCell sx={{ fontWeight: 500, color: 'primary.main' }}>
+                        {eng.name}
+                    </TableCell>
+                    <TableCell>{eng.year}</TableCell>
+                    <TableCell>{eng.engagement_type}</TableCell>
+                    <TableCell>
+                        <Chip label={eng.status} size="small" color={getStatusColor(eng.status) as any} />
+                    </TableCell>
+                    <TableCell>${eng.fee}</TableCell>
+                    <TableCell>
+                        <Launch sx={{ fontSize: 16, color: 'text.secondary' }} />
+                    </TableCell>
+                </TableRow>
+            ))}
+            {engagements.length === 0 && (
+                <TableRow><TableCell colSpan={6} align="center">No active engagements</TableCell></TableRow>
+            )}
+        </TableBody>
+      </Table>
+
+      {/* Add Engagement Dialog */}
+      <Dialog open={open} onClose={() => setOpen(false)}>
+        <DialogTitle>Start New Engagement</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1, minWidth: 400 }}>
+            <TextField label="Engagement Name" fullWidth placeholder="e.g. 2024 Audit" 
+                onChange={e => setNewEng({...newEng, name: e.target.value})} />
+            <TextField label="Year" type="number" fullWidth value={newEng.year} 
+                onChange={e => setNewEng({...newEng, year: parseInt(e.target.value)})} />
+            <TextField select label="Type" value={newEng.engagement_type} 
+                onChange={e => setNewEng({...newEng, engagement_type: e.target.value})}>
+                <MenuItem value="AUDIT">Audit</MenuItem>
+                <MenuItem value="TAX">Tax</MenuItem>
+                <MenuItem value="ADVISORY">Advisory</MenuItem>
+            </TextField>
+            <TextField label="Fee Estimate" type="number" fullWidth 
+                onChange={e => setNewEng({...newEng, fee: e.target.value})} />
+        </DialogContent>
+        <DialogActions>
+            <Button onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="contained" onClick={handleSave}>Create</Button>
+        </DialogActions>
+      </Dialog>
+    </Paper>
+  );
+};
+
+export default Engagements;
+
+
+EnagagementTasks
+import React, { useState, useEffect } from 'react';
+import { 
+  Box, Card, Checkbox, Typography, IconButton, 
+  Table, TableBody, TableCell, TableHead, TableRow, Chip, Button
+} from '@mui/material';
+import { Add, Delete, CalendarToday } from '@mui/icons-material';
+import api from '../api';
+
+const EngagementTasks = ({ engagementId, onUpdate }: any) => {
+  const [tasks, setTasks] = useState([]);
+
+  const fetchTasks = async () => {
+    const res = await api.get(`engagement-tasks/?engagement=${engagementId}`);
+    setTasks(res.data);
+  };
+
+  useEffect(() => { fetchTasks(); }, [engagementId]);
+
+  const toggleStatus = async (task: any) => {
+    const newStatus = task.status === 'DONE' ? 'PENDING' : 'DONE';
+    await api.patch(`engagement-tasks/${task.id}/`, { status: newStatus });
+    fetchTasks();
+    onUpdate(); // Updates the progress bar in the parent component
+  };
+
+  return (
+    <Card sx={{ p: 0 }}>
+      <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee' }}>
+        <Typography variant="h6">Audit Program / Checklist</Typography>
+        <Button startIcon={<Add />} variant="contained" size="small">Add Task</Button>
+      </Box>
+      
+      <Table>
+        <TableHead>
+          <TableRow sx={{ bgcolor: '#fafafa' }}>
+            <TableCell padding="checkbox"></TableCell>
+            <TableCell>Task</TableCell>
+            <TableCell>Assignee</TableCell>
+            <TableCell>Due Date</TableCell>
+            <TableCell>Status</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {tasks.map((task: any) => (
+            <TableRow key={task.id} hover selected={task.status === 'DONE'}>
+              <TableCell padding="checkbox">
+                <Checkbox 
+                  checked={task.status === 'DONE'} 
+                  onChange={() => toggleStatus(task)}
+                  color="success"
+                />
+              </TableCell>
+              <TableCell sx={{ textDecoration: task.status === 'DONE' ? 'line-through' : 'none' }}>
+                {task.title}
+                {task.is_milestone && <Chip label="Milestone" size="small" color="secondary" sx={{ ml: 1, height: 20 }} />}
+              </TableCell>
+              <TableCell>
+                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Avatar sx={{ width: 24, height: 24, fontSize: 12 }}>{task.assignee_name?.[0]}</Avatar>
+                    <Typography variant="body2">{task.assignee_name || 'Unassigned'}</Typography>
+                 </Box>
+              </TableCell>
+              <TableCell>{task.due_date}</TableCell>
+              <TableCell>
+                <Chip 
+                  label={task.status} 
+                  size="small" 
+                  color={task.status === 'DONE' ? 'success' : 'warning'} 
+                  variant="outlined" 
+                />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
+  );
+};
+export default EngagementTasks;
+
+
+pages/ClientDetail
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { 
+  Box, Typography, Button, Chip, Accordion, 
+  AccordionSummary, AccordionDetails, Dialog, DialogTitle, 
+  DialogContent, Paper, Avatar 
+} from '@mui/material';
+import Grid from '@mui/material/Grid';
+import { ArrowBack, ExpandMore, Person, Edit } from '@mui/icons-material';
+import api from '../api';
+
+// Components
+import ClientOverview from '../components/ClientOverview';
+import ClientContacts from '../components/ClientContacts';
+import Engagements from '../components/Engagements';
+import ClientDocuments from '../components/ClientDocuments';
+import ClientNotes from '../components/ClientNotes';
+
+const ClientDetail = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [client, setClient] = useState<any>(null);
+  const [contactsOpen, setContactsOpen] = useState(false);
+
+  const fetchClient = async () => {
+    try {
+        const res = await api.get(`clients/${id}/`);
+        setClient(res.data);
+    } catch (err) {
+        console.error("Failed to load client", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchClient();
+  }, [id]);
+
+  if (!client) return <Typography sx={{ p: 4 }}>Loading Client Data...</Typography>;
+
+  return (
+    <Box sx={{ maxWidth: 1600, margin: '0 auto', p: 2 }}>
+        {/* Header Section */}
+        <Box sx={{ mb: 3 }}>
+            <Button startIcon={<ArrowBack />} onClick={() => navigate('/clients')} sx={{ mb: 1, color: 'text.secondary' }}>
+                Back to List
+            </Button>
+            
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end' }}>
+                <Box>
+                    <Typography variant="h4" fontWeight="bold" sx={{ color: '#1a2035' }}>{client.name}</Typography>
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mt: 1 }}>
+                        <Typography color="text.secondary">Client ID: #{client.id}</Typography>
+                        <Chip label={client.industry} size="small" sx={{ bgcolor: '#e3f2fd', color: '#1976d2', fontWeight: 600 }} />
+                        <Chip label={client.entity_type} size="small" sx={{ bgcolor: '#f5f5f5' }} />
+                    </Box>
+                </Box>
+            </Box>
+        </Box>
+
+        {/* Collapsible "Sticky" Notes Section */}
+        <Accordion sx={{ mb: 3, bgcolor: '#fff3e0', border: '1px solid #ffe0b2' }} defaultExpanded={false}>
+            <AccordionSummary expandIcon={<ExpandMore />}>
+                <Typography fontWeight="bold" sx={{ color: '#ef6c00' }}>
+                    ⚠️ Important Client Notes & Alerts
+                </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+                <ClientNotes clientId={Number(id)} />
+            </AccordionDetails>
+        </Accordion>
+
+        <Grid container spacing={3}>
+            
+            {/* LEFT COLUMN: Static Data & Contacts Widget */}
+            <Grid size={{ xs: 12, md: 4, lg: 3 }}>
+                <ClientOverview client={client} onUpdate={fetchClient} />
+                
+                {/* Contacts Widget (Summary Only) */}
+                <Paper sx={{ p: 3, mt: 3 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Typography variant="h6" fontWeight="bold">Contacts</Typography>
+                        <Button startIcon={<Edit />} size="small" onClick={() => setContactsOpen(true)}>Manage</Button>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 1, bgcolor: '#f9fafb', borderRadius: 1 }}>
+                        <Avatar sx={{ bgcolor: '#1a2035' }}><Person /></Avatar>
+                        <Box>
+                            <Typography variant="subtitle2">View Contacts</Typography>
+                            <Typography variant="caption" color="text.secondary">Click Manage to add/edit</Typography>
+                        </Box>
+                    </Box>
+                </Paper>
+            </Grid>
+
+            {/* RIGHT COLUMN: Actionable Items (Engagements, General Docs) */}
+            <Grid size={{ xs: 12, md: 8, lg: 9 }}>
+                <Engagements clientId={Number(id)} />
+                <ClientDocuments clientId={Number(id)} />
+            </Grid>
+        </Grid>
+
+        {/* Full Contacts Management Modal */}
+        <Dialog open={contactsOpen} onClose={() => setContactsOpen(false)} maxWidth="md" fullWidth>
+            <DialogTitle>Client Contacts Directory</DialogTitle>
+            <DialogContent>
+               <ClientContacts clientId={Number(id)} />
+            </DialogContent>
+        </Dialog>
+    </Box>
+  );
+};
+
+export default ClientDetail;
+
+Clients
+import React, { useEffect, useState } from 'react';
+import {
+  Box, Typography, Button, Paper, Table, TableHead,
+  TableRow, TableCell, TableBody, Dialog, DialogTitle,
+  DialogContent, DialogActions, TextField, MenuItem
+} from '@mui/material';
+import { AddBusiness } from '@mui/icons-material';
+import api from '../api';
+import { useNavigate } from 'react-router-dom';
+
+const Clients = () => {
+  const [clients, setClients] = useState<any[]>([]);
+  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const [newClient, setNewClient] = useState({
+    name: '',
+    entity_type: 'COMPANY',
+    tax_id_number: '',
+    industry: '',
+    fiscal_year_end: '',
+  });
+
+  const fetchClients = async () => {
+    const res = await api.get('clients/');
+    setClients(res.data);
+  };
+
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      await api.post('clients/', newClient);
+      setOpen(false);
+      setNewClient({
+        name: '',
+        entity_type: 'COMPANY',
+        tax_id_number: '',
+        industry: '',
+        fiscal_year_end: '',
+      });
+      fetchClients();
+    } catch (err: any) {
+      alert(JSON.stringify(err.response?.data));
+    }
+  };
+
+  return (
+    <>
+      <Box sx={{ p: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+          <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+            Client CRM
+          </Typography>
+
+          <Button
+            variant="contained"
+            startIcon={<AddBusiness />}
+            onClick={() => setOpen(true)}
+            sx={{ bgcolor: '#4caf50' }}
+          >
+            Add Client
+          </Button>
+        </Box>
+
+        <Paper>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Entity Type</TableCell>
+                <TableCell>Tax ID</TableCell>
+                <TableCell>Industry</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+                {clients.map(client => (
+                    <TableRow key={client.id} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/clients/${client.id}`)}>
+                        <TableCell>{client.name}</TableCell>
+                        <TableCell>{client.entity_type}</TableCell>
+                        <TableCell>{client.tax_id_number}</TableCell>
+                        <TableCell>{client.industry}</TableCell>
+                    </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </Paper>
+      </Box>
+
+      {/* Add Client Dialog */}
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Add New Client</DialogTitle>
+
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          <TextField
+            label="Client Name"
+            fullWidth
+            onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
+          />
+
+          <TextField
+            select
+            label="Entity Type"
+            value={newClient.entity_type}
+            onChange={(e) => setNewClient({ ...newClient, entity_type: e.target.value })}
+          >
+            <MenuItem value="INDIVIDUAL">Individual</MenuItem>
+            <MenuItem value="LLC">LLC</MenuItem>
+            <MenuItem value="CORP">Corporation</MenuItem>
+            <MenuItem value="PARTNERSHIP">Partnership</MenuItem>
+            <MenuItem value="NGO">NGO</MenuItem>
+          </TextField>
+
+          <TextField
+            label="Tax ID Number"
+            fullWidth
+            onChange={(e) => setNewClient({ ...newClient, tax_id_number: e.target.value })}
+          />
+
+          <TextField
+            label="Industry"
+            fullWidth
+            onChange={(e) => setNewClient({ ...newClient, industry: e.target.value })}
+          />
+
+          <TextField
+            label="Fiscal Year End"
+            type="date"
+            InputLabelProps={{ shrink: true }}
+            onChange={(e) => setNewClient({ ...newClient, fiscal_year_end: e.target.value })}
+          />
+        </DialogContent>
+
+        <DialogActions sx={{ p: 3 }}>
+          <Button onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={handleSave} variant="contained" color="success">
+            Save Client
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
+};
+
+export default Clients;
+
+EngagementWorkspace
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { 
+    Box, Typography, LinearProgress, Chip, Button, 
+    Tab, Paper, Breadcrumbs, Link as MuiLink 
+} from '@mui/material';
+import { TabContext, TabList, TabPanel } from '@mui/lab';
+import { 
+    Assignment, Description, Dashboard, ArrowBack, 
+    CheckCircle, AccessTime 
+} from '@mui/icons-material';
+import api from '../api';
+
+// Child Components
+import EngagementOverview from '../components/EngagementOverview';
+import EngagementDocs from '../components/EngagementDocs';
+import EngagementTasks from '../components/EngagementTasks';
+
+const EngagementWorkspace = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [engagement, setEngagement] = useState<any>(null);
+  const [tab, setTab] = useState('1');
+
+  const fetchEngagement = async () => {
+    try {
+        const res = await api.get(`engagements/${id}/`);
+        setEngagement(res.data);
+    } catch (err) {
+        console.error("Failed to load engagement", err);
+    }
+  };
+
+  useEffect(() => { fetchEngagement(); }, [id]);
+
+  if (!engagement) return <LinearProgress />;
+
+  return (
+    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#f5f7fa' }}>
+      
+      {/* 1. Workspace Header */}
+      <Paper sx={{ p: 3, borderRadius: 0, borderBottom: '1px solid #e0e0e0', bgcolor: '#fff' }}>
+        
+        {/* Breadcrumbs for easy navigation */}
+        <Breadcrumbs sx={{ mb: 2 }}>
+            <MuiLink 
+                component="button" 
+                variant="body2"
+                color="inherit" 
+                onClick={() => navigate('/clients')}
+                sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+            >
+                Clients
+            </MuiLink>
+            
+            {/* Displaying the actual Client Name instead of ID */}
+            <MuiLink 
+                component="button" 
+                variant="body2"
+                color="inherit" 
+                onClick={() => navigate(`/clients/${engagement.client}`)}
+                sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+            >
+                {engagement.client_name}
+            </MuiLink>
+
+            {/* Displaying the Engagement Name (e.g., "FY2025 Statutory Audit") */}
+            <Typography variant="body2" color="text.primary" fontWeight="500">
+                {engagement.name}
+            </Typography>
+        </Breadcrumbs>
+
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Box>
+            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1 }}>
+              {engagement.year} {engagement.engagement_type}
+            </Typography>
+            <Typography variant="h4" fontWeight="bold" sx={{ color: '#1a2035' }}>
+              {engagement.name}
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                <Chip 
+                    icon={engagement.status === 'COMPLETED' ? <CheckCircle/> : <AccessTime/>} 
+                    label={engagement.status} 
+                    color="primary" 
+                    variant="outlined" 
+                    size="small" 
+                />
+            </Box>
+          </Box>
+
+          <Box sx={{ textAlign: 'right', minWidth: 200 }}>
+             <Typography variant="body2" color="text.secondary">Completion Progress</Typography>
+             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
+                 <LinearProgress 
+                    variant="determinate" 
+                    value={engagement.completion_percentage || 0} 
+                    sx={{ width: '100%', height: 10, borderRadius: 5 }} 
+                 />
+                 <Typography variant="h6" fontWeight="bold">{engagement.completion_percentage || 0}%</Typography>
+             </Box>
+          </Box>
+        </Box>
+
+        {/* Navigation Tabs */}
+        <Box sx={{ mt: 3 }}>
+            <TabContext value={tab}>
+                <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                    <TabList onChange={(e, v) => setTab(v)}>
+                        <Tab icon={<Dashboard fontSize="small"/>} iconPosition="start" label="Overview" value="1" />
+                        <Tab icon={<Assignment fontSize="small"/>} iconPosition="start" label="Audit Checklist" value="2" />
+                        <Tab icon={<Description fontSize="small"/>} iconPosition="start" label="Workpapers" value="3" />
+                    </TabList>
+                </Box>
+            </TabContext>
+        </Box>
+      </Paper>
+
+      {/* 2. Workspace Content Area */}
+      <Box sx={{ flexGrow: 1, p: 3, overflow: 'auto' }}>
+        <TabContext value={tab}>
+          {/* Overview Tab */}
+          <TabPanel value="1" sx={{ p: 0 }}>
+             <EngagementOverview data={engagement} onUpdate={fetchEngagement} />
+          </TabPanel>
+          
+          {/* Tasks/Checklist Tab */}
+          <TabPanel value="2" sx={{ p: 0 }}>
+             <EngagementTasks engagementId={Number(id)} onUpdate={fetchEngagement} />
+          </TabPanel>
+          
+          {/* Documents Tab */}
+          <TabPanel value="3" sx={{ p: 0 }}>
+             <EngagementDocs engagementId={Number(id)} />
+          </TabPanel>
+        </TabContext>
+      </Box>
+    </Box>
+  );
+};
+
+export default EngagementWorkspace;
+
+
+types/client.ts
+export interface ClientContact {
+  id?: number;
+  name: string;
+  email: string;
+  phone?: string;
+  is_primary: boolean;
+}
+
+export interface Client {
+  id: number;
+  name: string;
+  tax_id_number: string;
+  entity_type: string;
+  industry?: string;
+  partner?: { username: string };
+  fiscal_year_end?: string;
+  is_active: boolean;
+  contacts: ClientContact[];
+}
+
+App.tsx
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import DashboardLayout from './pages/Dashboard';
+import DashboardOverview from './pages/DashboardOverview';
+import Clients from './pages/Clients';
+import ClientDetail from './pages/ClientDetail';
+import EngagementWorkspace from './pages/EngagementWorkspace';
+import Accounting from './pages/Accounting';
+import StaffManagement from './pages/StaffManagement';
+import Login from './pages/Login';
+
+const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
+  const token = localStorage.getItem('access');
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+};
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+
+        {/* The Dashboard serves as the "Layout". 
+           All other pages render INSIDE it via the <Outlet/> 
+        */}
+        <Route 
+          path="/" 
+          element={
+            <ProtectedRoute>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
+          {/* This renders when path is exactly "/" */}
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          
+          {/* This renders inside the Dashboard Layout at "/dashboard" */}
+          <Route path="dashboard" element={<DashboardOverview />} />
+
+          {/* These render inside the Dashboard Layout */}
+          <Route path="clients" element={<Clients />} />
+          <Route path="clients/:id" element={<ClientDetail />} />
+          <Route path="engagements/:id" element={<EngagementWorkspace />} />
+          <Route path="accounting" element={<Accounting />} />
+          <Route path="staff" element={<StaffManagement />} />
+        </Route>
+        
+      </Routes>
+    </Router>
+  );
+}
+
+export default App;
+

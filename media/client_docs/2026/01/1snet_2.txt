@@ -1,0 +1,1176 @@
+all-schools template
+<?php
+/**
+ * Template Name: All Schools
+ *
+ */
+get_header();
+?>
+
+<div class="all-schools p-4">
+    <div class="wrapper">
+        <h1>All Schools</h1>
+
+        <!-- Selected filters display -->
+        <div id="selected-filters"></div>
+
+        <!-- Filters on top -->
+        <form id="school-filters">
+
+            <div class="fcol-1">
+                <?php if (isset($_GET['q']) && !empty($_GET['q'])) : ?>
+                    <input type="hidden" name="q" value="<?php echo esc_attr(sanitize_text_field($_GET['q'])); ?>">
+                <?php endif; ?>
+                <!-- Sorting -->
+                <select name="orderby">
+                    <option value="">Sort By</option>
+                    <option value="title_asc">Name A-Z</option>
+                    <option value="title_desc">Name Z-A</option>
+                    <option value="date_desc">Newest</option>
+                    <option value="date_asc">Oldest</option>
+                </select>
+
+                <button type="submit">Filter</button>
+                <button type="button" id="clear-filters">Clear Filters</button>
+            </div>
+
+            <div class="fcol-2">
+                <?php
+                // Taxonomy filters: checkboxes in dropdowns (one per taxonomy)
+                $taxonomies = [
+                    'elementary_education' => 'Elementary Schools',
+                    'lower_education' => 'Lower Schools',
+                    'higher_education' => 'Higher Schools',
+                    'special_interest' => 'Special Interests',
+                ];
+                foreach ($taxonomies as $tax => $label) :
+                ?>
+                    <div class="filter-dropdown" data-tax="<?php echo esc_attr($tax); ?>">
+                        <button type="button"><?php echo esc_html($label); ?><span class="arrow">&#9662;</span></button>
+                        <div class="dropdown-content">
+                            <?php
+                            $terms = get_terms(['taxonomy' => $tax, 'hide_empty' => false]);
+                            if (!empty($terms) && !is_wp_error($terms)) {
+                                foreach ($terms as $term) {
+                                    echo '<label><input type="checkbox" name="' . esc_attr($tax) . '[]" value="' . esc_attr($term->slug) . '"> ' . esc_html($term->name) . '</label>';
+                                }
+                            }
+                            ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+
+                <!-- ACF Region (select, dynamic) 
+                <select name="sch_region">
+                    <option value="">Region</option>
+                    <?php /*
+                    global $wpdb;
+                    $regions = $wpdb->get_col("SELECT DISTINCT meta_value FROM {$wpdb->postmeta} WHERE meta_key = 'sch_region' AND meta_value != '' ORDER BY meta_value ASC");
+                    if ($regions) {
+                        foreach ($regions as $region) {
+                            echo '<option value="' . esc_attr($region) . '">' . esc_html($region) . '</option>';
+                        }
+                    }
+                    */ ?>
+                </select> -->
+
+                <!-- ACF District (select, dynamic) -->
+                <select name="sch_district">
+                    <option value="">District</option>
+                    <?php
+                    global $wpdb;
+                    $districts = $wpdb->get_col("SELECT DISTINCT meta_value FROM {$wpdb->postmeta} WHERE meta_key = 'sch_district' AND meta_value != '' ORDER BY meta_value ASC");
+                    if ($districts) {
+                        foreach ($districts as $district) {
+                            echo '<option value="' . esc_attr($district) . '">' . esc_html($district) . '</option>';
+                        }
+                    }
+                    ?>
+                </select>
+            </div>
+
+            <div class="fcol-3">
+
+                <!-- ACF Faith Based -->
+                <div class="filter-dropdown" data-tax="sch_faith">
+                    <button type="button">Faith Based <span class="arrow">&#9662;</span></button>
+                    <div class="dropdown-content">
+                        <?php
+                        $field = acf_get_field('sch_faith'); 
+                        if ($field && !empty($field['choices'])) {
+                            foreach ($field['choices'] as $value => $label) {
+                                echo '<label><input type="checkbox" name="sch_faith[]" value="' . esc_attr($value) . '"> ' . esc_html($label) . '</label>';
+                            }
+                        }
+                        ?>
+                    </div>
+                </div>
+
+                <!-- ACF Gov't or Private -->
+                <div class="filter-dropdown" data-tax="govt_private">
+                    <button type="button">Gov&apos;t or Private <span class="arrow">&#9662;</span></button>
+                    <div class="dropdown-content">
+                        <?php
+                        $field = acf_get_field('govt_private');
+                        if ($field && !empty($field['choices'])) {
+                            foreach ($field['choices'] as $value => $label) {
+                                echo '<label><input type="checkbox" name="govt_private[]" value="' . esc_attr($value) . '"> ' . esc_html($label) . '</label>';
+                            }
+                        }
+                        ?>
+                    </div>
+                </div>
+
+                <!-- ACF Day or Boarding -->
+                <div class="filter-dropdown" data-tax="day_boarding">
+                    <button type="button">Day or Boarding <span class="arrow">&#9662;</span></button>
+                    <div class="dropdown-content">
+                        <?php
+                        $field = acf_get_field('day_boarding');
+                        if ($field && !empty($field['choices'])) {
+                            foreach ($field['choices'] as $value => $label) {
+                                echo '<label><input type="checkbox" name="day_boarding[]" value="' . esc_attr($value) . '"> ' . esc_html($label) . '</label>';
+                            }
+                        }
+                        ?>
+                    </div>
+                </div>
+
+                <!-- ACF Gender Acceptance -->
+                <div class="filter-dropdown" data-tax="sch_gender">
+                    <button type="button">Gender Acceptance <span class="arrow">&#9662;</span></button>
+                    <div class="dropdown-content">
+                        <?php
+                        $field = acf_get_field('sch_gender');
+                        if ($field && !empty($field['choices'])) {
+                            foreach ($field['choices'] as $value => $label) {
+                                echo '<label><input type="checkbox" name="sch_gender[]" value="' . esc_attr($value) . '"> ' . esc_html($label) . '</label>';
+                            }
+                        }
+                        ?>
+                    </div>
+                </div>
+
+            </div>
+
+        </form>
+
+        <!-- Results container -->
+        <div id="school-results">
+            <?php
+            // Initial query
+            $post_types = [
+                get_option('snet_elementary_slug', 'elementary'),
+                get_option('snet_lower_slug', 'lower'),
+                get_option('snet_higher_slug', 'higher'),
+                get_option('snet_interests_slug', 'interests'),
+            ];
+            $paged = (get_query_var('paged')) ? intval(get_query_var('paged')) : 1;
+            $args = [
+                'post_type' => $post_types,
+                'posts_per_page' => 18,
+                'paged' => $paged,
+            ];
+            if (isset($_GET['q']) && !empty($_GET['q'])) {
+                $args['s'] = sanitize_text_field($_GET['q']);
+            }
+            $query = new WP_Query($args);
+            if ($query->have_posts()) {
+                echo '<p class="results-count"><span>' . $query->found_posts . '</span> schools found.</p>';
+                echo '<div class="school-grid">';
+                while ($query->have_posts()) {
+                    $query->the_post();
+                    $thumbnail_url = get_the_post_thumbnail_url(get_the_ID(), 'full');
+                    $post_link = get_permalink();
+                    $taxonomies = get_object_taxonomies(get_post_type(), 'names');
+                    $main_term = '';
+                    $main_url = '';
+                    if (!empty($taxonomies)) {
+                        $terms = get_the_terms(get_the_ID(), $taxonomies[0]);
+                        if ($terms && !is_wp_error($terms)) {
+                            $main_term = $terms[0]->name;
+                            $main_url = get_term_link($terms[0]);
+                        }
+                    }
+                    $post_id = get_the_ID();
+
+                    echo '<div class="featured-sch">';
+                    echo '<div class="img-section">';
+                    if ($thumbnail_url) {
+                        echo '<img src="' . esc_url($thumbnail_url) . '" alt="' . esc_attr(get_the_title()) . ' Cover Image" class="cover-img">';
+                    }
+                    echo '<div class="img-section-content">';
+                    if (get_field('sch_logo')) { echo '<img src="' . esc_url(get_field('sch_logo')) . '" alt="' . esc_attr(get_the_title()) . ' Logo" class="logo-img">'; }
+                    echo '<div class="float-right">';
+                    echo do_shortcode('[site_reviews_summary assigned_posts="' . $post_id . '" hide="bars,rating,summary"]');
+                    /*if ($main_term) {
+                        echo '<a href="' . esc_url($main_url) . '" class="main-term">' . esc_html($main_term) . '</a>';
+                    }*/
+                    echo '</div>';
+                    echo '</div>';
+                    echo '</div>';
+                    echo '<div class="title-section">';
+                    echo '<h4>' . esc_html(get_the_title()) . '</h4>';
+                    if ($d = get_field('sch_district')) echo '<p>(' . esc_html(is_array($d) ? implode(', ', $d) : $d) . ')</p>';
+                    echo '<a href="' . esc_url($post_link) . '" class="btn-box box-3"><div class="btn btn-three"><span>View Details</span></div></a>';
+                    if ($phone = get_field('sch_phone')) {
+                        $phones = preg_split('/\s+(?=[+0])/', $phone);
+                        $first_phone = trim($phones[0]);
+                        if ($first_phone) {
+                            $clean_phone = preg_replace('/[^\d+]/', '', $first_phone);
+                            echo '<a href="tel:' . esc_attr($clean_phone) . '" class="btn-box box-1"><div class="btn btn-one"><span><img src="https://devs.wordpress.ug/snet/ug/wp-content/uploads/sites/2/2025/08/calling.png" alt="Phone Icon" class="phone-icon" />' . esc_html($first_phone) . '</span></div></a>';
+                        }
+                    }
+                    //if (get_field('sch_phone')) { echo '<a href="tel:' . esc_attr(preg_replace('/[^\d+]/', '', get_field('sch_phone'))) . '" class="btn-box box-1"><div class="btn btn-one"><span><img src="https://devs.wordpress.ug/snet/ug/wp-content/uploads/sites/2/2025/08/calling.png" alt="Phone Icon" class="phone-icon" />' . esc_html(get_field('sch_phone')) . '</span></div></a>'; }
+                    echo '</div>';
+                    echo '</div>';
+                }
+                echo '</div>';
+                echo '<div class="pagination">';
+                $big = 999999999;
+                echo paginate_links([
+                    'base' => str_replace($big, '%#%', esc_url(get_pagenum_link($big))),
+                    'format' => '?paged=%#%',
+                    'current' => $paged,
+                    'total' => $query->max_num_pages,
+                ]);
+                echo '</div>';
+            } else {
+                echo '<p>No schools found.</p>';
+            }
+            wp_reset_postdata();
+            ?>
+        </div>
+    </div>
+</div>
+
+<script>
+jQuery(function($) {
+    // Toggle taxonomy dropdowns
+    $('.filter-dropdown button').on('click', function() {
+        $(this).parent().toggleClass('active');
+    });
+
+    // Close dropdown when clicking outside
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('.filter-dropdown').length) {
+            $('.filter-dropdown').removeClass('active');
+        }
+    });
+
+    // Trigger filter on form submit, checkbox/select change
+    $('#school-filters').on('submit', function(e) {
+        e.preventDefault();
+        filterSchools(1);
+    });
+    $('#school-filters input[type="checkbox"], #school-filters select').on('change', function() {
+        filterSchools(1);
+        updateSelectedFilters();
+    });
+
+    // Clear filters
+    $('#clear-filters').on('click', function() {
+        $('#school-filters')[0].reset();
+        $('input[name="q"]').val('');
+        $('.filter-dropdown').removeClass('active');
+        updateSelectedFilters();
+        filterSchools(1);
+        $('#sch-search input[name="q"]').val('');
+    });
+
+    // Handle pagination clicks
+    $('#school-results').on('click', '.pagination a', function(e) {
+        e.preventDefault();
+        var pageMatch = $(this).attr('href').match(/paged=([0-9]+)/);
+        var page = pageMatch ? pageMatch[1] : 1;
+        filterSchools(page);
+    });
+
+    // Remove chip
+    $('#selected-filters').on('click', '.remove', function() {
+        var chip = $(this).parent();
+        var name = chip.data('name');
+        var val = chip.data('val');
+        if (name.endsWith('[]')) { // Checkbox
+            $(`input[name="${name}"][value="${val}"]`).prop('checked', false);
+        } else if ($(`select[name="${name}"]`).length) { // Select
+            $(`select[name="${name}"]`).val('');
+        } else { // Input like q
+            $(`input[name="${name}"]`).val('');
+        }
+        if (name === 'q') {
+            $('#sch-search input[name="q"]').val('');
+        }
+        updateSelectedFilters();
+        filterSchools(1);
+    });
+
+    function filterSchools(page) {
+        var formData = $('#school-filters').serialize();
+        formData += '&paged=' + page + '&action=filter_schools';
+        $.post('<?php echo esc_url(admin_url('admin-ajax.php')); ?>', formData, function(response) {
+            $('#school-results').html(response);
+        });
+    }
+
+    function updateSelectedFilters() {
+        $('#selected-filters').empty();
+        // Selects
+        $('#school-filters select').each(function() {
+            var val = $(this).val();
+            if (val) {
+                var name = $(this).attr('name');
+                var label = $(this).find('option:selected').text();
+                addChip(name, val, label);
+            }
+        });
+        // Checkboxes (taxonomies and ACF)
+        $('#school-filters input[type="checkbox"]:checked').each(function() {
+            var name = $(this).attr('name');
+            var val = $(this).val();
+            var label = $(this).parent().text().trim();
+            addChip(name, val, label);
+        });
+
+        var qVal = $('input[name="q"]').val();
+        if (qVal) {
+            addChip('q', qVal, 'Search: ' + qVal);
+        }
+    }
+
+    function addChip(name, val, label) {
+        var chip = $('<span class="chip">' + label + ' <span class="remove">x</span></span>');
+        chip.data({name: name, val: val});
+        $('#selected-filters').append(chip);
+    }
+});
+
+</script>
+
+<?php if (isset($_GET['q']) && !empty($_GET['q'])) : ?>
+    <script>
+    jQuery(function($) {
+        var q = <?php echo json_encode(sanitize_text_field($_GET['q'])); ?>;
+        $('#sch-search input[name="q"]').val(q);
+        filterSchools(1);
+        $('html, body').animate({scrollTop: $('#school-results').offset().top - 100}, 1000);
+    });
+    </script>
+<?php endif; ?>
+
+<?php get_footer(); ?>
+
+
+taxonomy template
+<?php
+get_header();
+?>
+
+<div class="header-section">
+    <div class="wrapper">
+        <div class="img-col">
+            <img src="https://devs.wordpress.ug/snet/ug/wp-content/uploads/sites/2/2025/09/toprated.png" alt="Schoolnet Logo" />
+        </div>
+        <div class="tax-content">
+            <h1><?php echo date('Y'); ?> Top <?php post_type_archive_title(); ?> Schools in Uganda</h1>
+            <p>Choosing a school is one of the most important decisions you'll make for your child. Schoolnet provides you with an easy way to explore and compare the best schools, from top-rated <?php post_type_archive_title(); ?> academics to schools with unique extracurricular programs.</p>
+        </div>
+    </div>
+</div>
+
+<div class="all-schools p-4">
+    <div class="wrapper">
+
+        <div id="selected-filters"></div>
+
+        <form id="school-filters">
+
+            <div class="fcol-1">
+                <input type="text" name="s" placeholder="Search schools...">
+                <select name="orderby">
+                    <option value="">Sort By</option>
+                    <option value="title_asc">Name A-Z</option>
+                    <option value="title_desc">Name Z-A</option>
+                    <option value="date_desc">Newest</option>
+                    <option value="date_asc">Oldest</option>
+                </select>
+
+                <button type="submit">Filter</button>
+                <button type="button" id="clear-filters">Clear Filters</button>
+            </div>
+
+            <div class="fcol-2">
+                <?php
+                $taxonomies = [
+                    'elementary_education' => 'Elementary Schools',
+                    'lower_education' => 'Lower Schools',
+                    'higher_education' => 'Higher Schools',
+                    'special_interest' => 'Special Interests',
+                ];
+                foreach ($taxonomies as $tax => $label) :
+                ?>
+                    <div class="filter-dropdown" data-tax="<?php echo esc_attr($tax); ?>">
+                        <button type="button"><?php echo esc_html($label); ?><span class="arrow">&#9662;</span></button>
+                        <div class="dropdown-content">
+                            <?php
+                            $terms = get_terms(['taxonomy' => $tax, 'hide_empty' => false]);
+                            if (!empty($terms) && !is_wp_error($terms)) {
+                                foreach ($terms as $term) {
+                                    echo '<label><input type="checkbox" name="' . esc_attr($tax) . '[]" value="' . esc_attr($term->slug) . '"> ' . esc_html($term->name) . '</label>';
+                                }
+                            }
+                            ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+
+                <select name="sch_district">
+                    <option value="">District</option>
+                    <?php
+                    global $wpdb;
+                    $districts = $wpdb->get_col("SELECT DISTINCT meta_value FROM {$wpdb->postmeta} WHERE meta_key = 'sch_district' AND meta_value != '' ORDER BY meta_value ASC");
+                    if ($districts) {
+                        foreach ($districts as $district) {
+                            echo '<option value="' . esc_attr($district) . '">' . esc_html($district) . '</option>';
+                        }
+                    }
+                    ?>
+                </select>
+            </div>
+
+            <div class="fcol-3">
+
+                <div class="filter-dropdown" data-tax="sch_faith">
+                    <button type="button">Faith Based <span class="arrow">&#9662;</span></button>
+                    <div class="dropdown-content">
+                        <?php
+                        $field = acf_get_field('sch_faith'); 
+                        if ($field && !empty($field['choices'])) {
+                            foreach ($field['choices'] as $value => $label) {
+                                echo '<label><input type="checkbox" name="sch_faith[]" value="' . esc_attr($value) . '"> ' . esc_html($label) . '</label>';
+                            }
+                        }
+                        ?>
+                    </div>
+                </div>
+
+                <div class="filter-dropdown" data-tax="govt_private">
+                    <button type="button">Gov&apos;t or Private <span class="arrow">&#9662;</span></button>
+                    <div class="dropdown-content">
+                        <?php
+                        $field = acf_get_field('govt_private');
+                        if ($field && !empty($field['choices'])) {
+                            foreach ($field['choices'] as $value => $label) {
+                                echo '<label><input type="checkbox" name="govt_private[]" value="' . esc_attr($value) . '"> ' . esc_html($label) . '</label>';
+                            }
+                        }
+                        ?>
+                    </div>
+                </div>
+
+                <div class="filter-dropdown" data-tax="day_boarding">
+                    <button type="button">Day or Boarding <span class="arrow">&#9662;</span></button>
+                    <div class="dropdown-content">
+                        <?php
+                        $field = acf_get_field('day_boarding');
+                        if ($field && !empty($field['choices'])) {
+                            foreach ($field['choices'] as $value => $label) {
+                                echo '<label><input type="checkbox" name="day_boarding[]" value="' . esc_attr($value) . '"> ' . esc_html($label) . '</label>';
+                            }
+                        }
+                        ?>
+                    </div>
+                </div>
+
+                <div class="filter-dropdown" data-tax="sch_gender">
+                    <button type="button">Gender Acceptance <span class="arrow">&#9662;</span></button>
+                    <div class="dropdown-content">
+                        <?php
+                        $field = acf_get_field('sch_gender');
+                        if ($field && !empty($field['choices'])) {
+                            foreach ($field['choices'] as $value => $label) {
+                                echo '<label><input type="checkbox" name="sch_gender[]" value="' . esc_attr($value) . '"> ' . esc_html($label) . '</label>';
+                            }
+                        }
+                        ?>
+                    </div>
+                </div>
+
+            </div>
+
+        </form>
+
+        <div id="school-results">
+            <?php
+            $paged = (get_query_var('paged')) ? intval(get_query_var('paged')) : 1;
+            $post_type = get_query_var('post_type');
+            $args = [
+                'post_type' => $post_type,
+                'posts_per_page' => 18,
+                'paged' => $paged,
+            ];
+            $query = new WP_Query($args);
+            if ($query->have_posts()) {
+                echo '<p class="results-count"><span>' . $query->found_posts . '</span> schools found.</p>';
+                echo '<div class="school-grid">';
+                while ($query->have_posts()) {
+                    $query->the_post();
+                    $thumbnail_url = get_the_post_thumbnail_url(get_the_ID(), 'full');
+                    $post_link = get_permalink();
+                    $taxonomies = get_object_taxonomies(get_post_type(), 'names');
+                    $main_term = '';
+                    $main_url = '';
+                    if (!empty($taxonomies)) {
+                        $terms = get_the_terms(get_the_ID(), $taxonomies[0]);
+                        if ($terms && !is_wp_error($terms)) {
+                            $main_term = $terms[0]->name;
+                            $main_url = get_term_link($terms[0]);
+                        }
+                    }
+                    $post_id = get_the_ID();
+
+                    echo '<div class="featured-sch">';
+                    echo '<div class="img-section">';
+                    if ($thumbnail_url) {
+                        echo '<img src="' . esc_url($thumbnail_url) . '" alt="' . esc_attr(get_the_title()) . ' Cover Image" class="cover-img">';
+                    }
+                    echo '<div class="img-section-content">';
+                    if (get_field('sch_logo')) { echo '<img src="' . esc_url(get_field('sch_logo')) . '" alt="' . esc_attr(get_the_title()) . ' Logo" class="logo-img">'; }
+                    echo '<div class="float-right">';
+                    echo do_shortcode('[site_reviews_summary assigned_posts="' . $post_id . '" hide="bars,rating,summary"]');
+                    echo '</div>';
+                    echo '</div>';
+                    echo '</div>';
+                    echo '<div class="title-section">';
+                    echo '<h4>' . esc_html(get_the_title()) . '</h4>';
+                    if ($d = get_field('sch_district')) echo '<p>(' . esc_html(is_array($d) ? implode(', ', $d) : $d) . ')</p>';
+                    echo '<a href="' . esc_url($post_link) . '" class="btn-box box-3"><div class="btn btn-three"><span>View Details</span></div></a>';
+                    if ($phone = get_field('sch_phone')) {
+                        $phones = preg_split('/\s+(?=[+0])/', $phone);
+                        $first_phone = trim($phones[0]);
+                        if ($first_phone) {
+                            $clean_phone = preg_replace('/[^\d+]/', '', $first_phone);
+                            echo '<a href="tel:' . esc_attr($clean_phone) . '" class="btn-box box-1"><div class="btn btn-one"><span><img src="https://devs.wordpress.ug/snet/ug/wp-content/uploads/sites/2/2025/08/calling.png" alt="Phone Icon" class="phone-icon" />' . esc_html($first_phone) . '</span></div></a>';
+                        }
+                    }
+                    echo '</div>';
+                    echo '</div>';
+                }
+                echo '</div>';
+                echo '<div class="pagination">';
+                $big = 999999999;
+                echo paginate_links([
+                    'base' => str_replace($big, '%#%', esc_url(get_pagenum_link($big))),
+                    'format' => '?paged=%#%',
+                    'current' => max(1, $paged),
+                    'total' => $query->max_num_pages,
+                ]);
+                echo '</div>';
+            } else {
+                echo '<p>No schools found.</p>';
+            }
+            wp_reset_postdata();
+            ?>
+        </div>
+    </div>
+</div>
+
+<script>
+jQuery(function($) {
+    $('.filter-dropdown button').on('click', function() {
+        $(this).parent().toggleClass('active');
+    });
+
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('.filter-dropdown').length) {
+            $('.filter-dropdown').removeClass('active');
+        }
+    });
+
+    $('#school-filters').on('submit', function(e) {
+        e.preventDefault();
+        filterSchools(1);
+    });
+    $('#school-filters input[type="checkbox"], #school-filters select').on('change', function() {
+        filterSchools(1);
+        updateSelectedFilters();
+    });
+
+    $('#clear-filters').on('click', function() {
+        $('#school-filters')[0].reset();
+        $('.filter-dropdown').removeClass('active');
+        updateSelectedFilters();
+        filterSchools(1);
+    });
+
+    $('#school-results').on('click', '.pagination a', function(e) {
+        e.preventDefault();
+        var pageMatch = $(this).attr('href').match(/paged=([0-9]+)/);
+        var page = pageMatch ? pageMatch[1] : 1;
+        filterSchools(page);
+    });
+
+    $('#selected-filters').on('click', '.remove', function() {
+        var chip = $(this).parent();
+        var name = chip.data('name');
+        var val = chip.data('val');
+        if (name.endsWith('[]')) {
+            $(`input[name="${name}"][value="${val}"]`).prop('checked', false);
+        } else {
+            $(`select[name="${name}"]`).val('');
+        }
+        updateSelectedFilters();
+        filterSchools(1);
+    });
+
+    function filterSchools(page) {
+        var formData = $('#school-filters').serialize();
+        formData += '&paged=' + page + '&action=filter_schools&post_type=<?php echo esc_js($post_type); ?>';
+        $.post('<?php echo esc_url(admin_url('admin-ajax.php')); ?>', formData, function(response) {
+            $('#school-results').html(response);
+        });
+    }
+
+    function updateSelectedFilters() {
+        $('#selected-filters').empty();
+        $('#school-filters select').each(function() {
+            var val = $(this).val();
+            if (val) {
+                var name = $(this).attr('name');
+                var label = $(this).find('option:selected').text();
+                addChip(name, val, label);
+            }
+        });
+        $('#school-filters input[type="checkbox"]:checked').each(function() {
+            var name = $(this).attr('name');
+            var val = $(this).val();
+            var label = $(this).parent().text().trim();
+            addChip(name, val, label);
+        });
+    }
+
+    function addChip(name, val, label) {
+        var chip = $('<span class="chip">' + label + ' <span class="remove">x</span></span>');
+        chip.data({name: name, val: val});
+        $('#selected-filters').append(chip);
+    }
+});
+</script>
+
+<?php get_footer(); ?>
+
+
+terms template
+<?php
+get_header();
+?>
+
+<div class="header-section">
+    <div class="wrapper">
+        <div class="img-col">
+            <img src="https://devs.wordpress.ug/snet/ug/wp-content/uploads/sites/2/2025/09/toprated.png" alt="Schoolnet Logo" />
+        </div>
+        <div class="tax-content">
+            <h1><?php echo date('Y'); ?> Top <?php single_term_title(); ?> Schools in Uganda</h1>
+            <?php echo term_description(); ?>
+        </div>
+    </div>
+</div>
+
+<div class="all-schools p-4">
+
+    <div class="wrapper">
+
+        <div id="selected-filters"></div>
+
+        <form id="school-filters">
+
+            <div class="fcol-1">
+                <input type="text" name="s" placeholder="Search schools...">
+                <select name="orderby">
+                    <option value="">Sort By</option>
+                    <option value="title_asc">Name A-Z</option>
+                    <option value="title_desc">Name Z-A</option>
+                    <option value="date_desc">Newest</option>
+                    <option value="date_asc">Oldest</option>
+                </select>
+
+                <button type="submit">Filter</button>
+                <button type="button" id="clear-filters">Clear Filters</button>
+            </div>
+
+            <div class="fcol-2">
+                <?php
+                $taxonomies = [
+                    'elementary_education' => 'Elementary Schools',
+                    'lower_education' => 'Lower Schools',
+                    'higher_education' => 'Higher Schools',
+                    'special_interest' => 'Special Interests',
+                ];
+                foreach ($taxonomies as $tax => $label) :
+                ?>
+                    <div class="filter-dropdown" data-tax="<?php echo esc_attr($tax); ?>">
+                        <button type="button"><?php echo esc_html($label); ?><span class="arrow">&#9662;</span></button>
+                        <div class="dropdown-content">
+                            <?php
+                            $terms = get_terms(['taxonomy' => $tax, 'hide_empty' => false]);
+                            if (!empty($terms) && !is_wp_error($terms)) {
+                                foreach ($terms as $term) {
+                                    echo '<label><input type="checkbox" name="' . esc_attr($tax) . '[]" value="' . esc_attr($term->slug) . '"> ' . esc_html($term->name) . '</label>';
+                                }
+                            }
+                            ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+
+                <select name="sch_district">
+                    <option value="">District</option>
+                    <?php
+                    global $wpdb;
+                    $districts = $wpdb->get_col("SELECT DISTINCT meta_value FROM {$wpdb->postmeta} WHERE meta_key = 'sch_district' AND meta_value != '' ORDER BY meta_value ASC");
+                    if ($districts) {
+                        foreach ($districts as $district) {
+                            echo '<option value="' . esc_attr($district) . '">' . esc_html($district) . '</option>';
+                        }
+                    }
+                    ?>
+                </select>
+            </div>
+
+            <div class="fcol-3">
+
+                <div class="filter-dropdown" data-tax="sch_faith">
+                    <button type="button">Faith Based <span class="arrow">&#9662;</span></button>
+                    <div class="dropdown-content">
+                        <?php
+                        $field = acf_get_field('sch_faith'); 
+                        if ($field && !empty($field['choices'])) {
+                            foreach ($field['choices'] as $value => $label) {
+                                echo '<label><input type="checkbox" name="sch_faith[]" value="' . esc_attr($value) . '"> ' . esc_html($label) . '</label>';
+                            }
+                        }
+                        ?>
+                    </div>
+                </div>
+
+                <div class="filter-dropdown" data-tax="govt_private">
+                    <button type="button">Gov&apos;t or Private <span class="arrow">&#9662;</span></button>
+                    <div class="dropdown-content">
+                        <?php
+                        $field = acf_get_field('govt_private');
+                        if ($field && !empty($field['choices'])) {
+                            foreach ($field['choices'] as $value => $label) {
+                                echo '<label><input type="checkbox" name="govt_private[]" value="' . esc_attr($value) . '"> ' . esc_html($label) . '</label>';
+                            }
+                        }
+                        ?>
+                    </div>
+                </div>
+
+                <div class="filter-dropdown" data-tax="day_boarding">
+                    <button type="button">Day or Boarding <span class="arrow">&#9662;</span></button>
+                    <div class="dropdown-content">
+                        <?php
+                        $field = acf_get_field('day_boarding');
+                        if ($field && !empty($field['choices'])) {
+                            foreach ($field['choices'] as $value => $label) {
+                                echo '<label><input type="checkbox" name="day_boarding[]" value="' . esc_attr($value) . '"> ' . esc_html($label) . '</label>';
+                            }
+                        }
+                        ?>
+                    </div>
+                </div>
+
+                <div class="filter-dropdown" data-tax="sch_gender">
+                    <button type="button">Gender Acceptance <span class="arrow">&#9662;</span></button>
+                    <div class="dropdown-content">
+                        <?php
+                        $field = acf_get_field('sch_gender');
+                        if ($field && !empty($field['choices'])) {
+                            foreach ($field['choices'] as $value => $label) {
+                                echo '<label><input type="checkbox" name="sch_gender[]" value="' . esc_attr($value) . '"> ' . esc_html($label) . '</label>';
+                            }
+                        }
+                        ?>
+                    </div>
+                </div>
+
+            </div>
+
+        </form>
+
+        <div id="school-results">
+            <?php
+            $paged = (get_query_var('paged')) ? intval(get_query_var('paged')) : 1;
+            $queried_object = get_queried_object();
+            $taxonomy = $queried_object->taxonomy;
+            $term = $queried_object->slug;
+            $taxonomy_to_post_type = [
+                'elementary_education' => get_option('snet_elementary_slug', 'elementary'),
+                'lower_education' => get_option('snet_lower_slug', 'lower'),
+                'higher_education' => get_option('snet_higher_slug', 'higher'),
+                'special_interest' => get_option('snet_interests_slug', 'interests'),
+            ];
+            $post_type = isset($taxonomy_to_post_type[$taxonomy]) ? $taxonomy_to_post_type[$taxonomy] : '';
+            $args = [
+                'post_type' => $post_type,
+                'posts_per_page' => 18,
+                'paged' => $paged,
+                'tax_query' => [
+                    [
+                        'taxonomy' => $taxonomy,
+                        'field' => 'slug',
+                        'terms' => $term,
+                    ]
+                ],
+            ];
+            $query = new WP_Query($args);
+            if ($query->have_posts()) {
+                echo '<p class="results-count"><span>' . $query->found_posts . '</span> schools found.</p>';
+                echo '<div class="school-grid">';
+                while ($query->have_posts()) {
+                    $query->the_post();
+                    $thumbnail_url = get_the_post_thumbnail_url(get_the_ID(), 'full');
+                    $post_link = get_permalink();
+                    $taxonomies = get_object_taxonomies(get_post_type(), 'names');
+                    $main_term = '';
+                    $main_url = '';
+                    if (!empty($taxonomies)) {
+                        $terms = get_the_terms(get_the_ID(), $taxonomies[0]);
+                        if ($terms && !is_wp_error($terms)) {
+                            $main_term = $terms[0]->name;
+                            $main_url = get_term_link($terms[0]);
+                        }
+                    }
+                    $post_id = get_the_ID();
+
+                    echo '<div class="featured-sch">';
+                    echo '<div class="img-section">';
+                    if ($thumbnail_url) {
+                        echo '<img src="' . esc_url($thumbnail_url) . '" alt="' . esc_attr(get_the_title()) . ' Cover Image" class="cover-img">';
+                    }
+                    echo '<div class="img-section-content">';
+                    if (get_field('sch_logo')) { echo '<img src="' . esc_url(get_field('sch_logo')) . '" alt="' . esc_attr(get_the_title()) . ' Logo" class="logo-img">'; }
+                    echo '<div class="float-right">';
+                    echo do_shortcode('[site_reviews_summary assigned_posts="' . $post_id . '" hide="bars,rating,summary"]');
+                    echo '</div>';
+                    echo '</div>';
+                    echo '</div>';
+                    echo '<div class="title-section">';
+                    echo '<h4>' . esc_html(get_the_title()) . '</h4>';
+                    if ($d = get_field('sch_district')) echo '<p>(' . esc_html(is_array($d) ? implode(', ', $d) : $d) . ')</p>';
+                    echo '<a href="' . esc_url($post_link) . '" class="btn-box box-3"><div class="btn btn-three"><span>View Details</span></div></a>';
+                    if ($phone = get_field('sch_phone')) {
+                        $phones = preg_split('/\s+(?=[+0])/', $phone);
+                        $first_phone = trim($phones[0]);
+                        if ($first_phone) {
+                            $clean_phone = preg_replace('/[^\d+]/', '', $first_phone);
+                            echo '<a href="tel:' . esc_attr($clean_phone) . '" class="btn-box box-1"><div class="btn btn-one"><span><img src="https://devs.wordpress.ug/snet/ug/wp-content/uploads/sites/2/2025/08/calling.png" alt="Phone Icon" class="phone-icon" />' . esc_html($first_phone) . '</span></div></a>';
+                        }
+                    }
+                    echo '</div>';
+                    echo '</div>';
+                }
+                echo '</div>';
+                echo '<div class="pagination">';
+                $big = 999999999;
+                echo paginate_links([
+                    'base' => str_replace($big, '%#%', esc_url(get_pagenum_link($big))),
+                    'format' => '?paged=%#%',
+                    'current' => max(1, $paged),
+                    'total' => $query->max_num_pages,
+                ]);
+                echo '</div>';
+            } else {
+                echo '<p>No schools found.</p>';
+            }
+            wp_reset_postdata();
+            ?>
+        </div>
+    </div>
+</div>
+
+<script>
+jQuery(function($) {
+    $('.filter-dropdown button').on('click', function() {
+        $(this).parent().toggleClass('active');
+    });
+
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('.filter-dropdown').length) {
+            $('.filter-dropdown').removeClass('active');
+        }
+    });
+
+    $('#school-filters').on('submit', function(e) {
+        e.preventDefault();
+        filterSchools(1);
+    });
+    $('#school-filters input[type="checkbox"], #school-filters select').on('change', function() {
+        filterSchools(1);
+        updateSelectedFilters();
+    });
+
+    $('#clear-filters').on('click', function() {
+        $('#school-filters')[0].reset();
+        $('.filter-dropdown').removeClass('active');
+        updateSelectedFilters();
+        filterSchools(1);
+    });
+
+    $('#school-results').on('click', '.pagination a', function(e) {
+        e.preventDefault();
+        var pageMatch = $(this).attr('href').match(/paged=([0-9]+)/);
+        var page = pageMatch ? pageMatch[1] : 1;
+        filterSchools(page);
+    });
+
+    $('#selected-filters').on('click', '.remove', function() {
+        var chip = $(this).parent();
+        var name = chip.data('name');
+        var val = chip.data('val');
+        if (name.endsWith('[]')) {
+            $(`input[name="${name}"][value="${val}"]`).prop('checked', false);
+        } else {
+            $(`select[name="${name}"]`).val('');
+        }
+        updateSelectedFilters();
+        filterSchools(1);
+    });
+
+    function filterSchools(page) {
+        var formData = $('#school-filters').serialize();
+        formData += '&paged=' + page + '&action=filter_schools&post_type=<?php echo esc_js($post_type); ?>&taxonomy=<?php echo esc_js($taxonomy); ?>&term=<?php echo esc_js($term); ?>';
+        $.post('<?php echo esc_url(admin_url('admin-ajax.php')); ?>', formData, function(response) {
+            $('#school-results').html(response);
+        });
+    }
+
+    function updateSelectedFilters() {
+        $('#selected-filters').empty();
+        $('#school-filters select').each(function() {
+            var val = $(this).val();
+            if (val) {
+                var name = $(this).attr('name');
+                var label = $(this).find('option:selected').text();
+                addChip(name, val, label);
+            }
+        });
+        $('#school-filters input[type="checkbox"]:checked').each(function() {
+            var name = $(this).attr('name');
+            var val = $(this).val();
+            var label = $(this).parent().text().trim();
+            addChip(name, val, label);
+        });
+    }
+
+    function addChip(name, val, label) {
+        var chip = $('<span class="chip">' + label + ' <span class="remove">x</span></span>');
+        chip.data({name: name, val: val});
+        $('#selected-filters').append(chip);
+    }
+});
+</script>
+
+<?php get_footer(); ?>
+
+functions
+// Filters
+add_action('wp_ajax_filter_schools', 'filter_schools');
+add_action('wp_ajax_nopriv_filter_schools', 'filter_schools');
+
+function filter_schools() {
+
+    if (isset($_POST['post_type'])) {
+        $args['post_type'] = sanitize_text_field($_POST['post_type']);
+    } else {
+        $args['post_type'] = [
+            get_option('snet_elementary_slug', 'elementary'),
+            get_option('snet_lower_slug', 'lower'),
+            get_option('snet_higher_slug', 'higher'),
+            get_option('snet_interests_slug', 'interests'),
+        ];
+    }
+    $args['posts_per_page'] = 18;
+    $args['paged'] = isset($_POST['paged']) ? intval($_POST['paged']) : 1;
+
+    if (!empty($_POST['q'])) {
+        $args['s'] = sanitize_text_field($_POST['q']);
+    }
+
+    // Tax query for custom taxonomies
+    $taxonomies = [
+        'elementary_education',
+        'lower_education',
+        'higher_education',
+        'special_interest',
+    ];
+    $tax_query = [];
+
+    if (isset($_POST['taxonomy']) && isset($_POST['term']) && !empty($_POST['taxonomy']) && !empty($_POST['term'])) {
+        $tax_query[] = [
+            'taxonomy' => sanitize_text_field($_POST['taxonomy']),
+            'field' => 'slug',
+            'terms' => sanitize_text_field($_POST['term']),
+        ];
+    }
+
+    foreach ($taxonomies as $tax) {
+        if (!empty($_POST[$tax]) && is_array($_POST[$tax])) {
+            $tax_query[] = [
+                'taxonomy' => $tax,
+                'field' => 'slug',
+                'terms' => array_map('sanitize_text_field', $_POST[$tax]),
+            ];
+        }
+    }
+    if (!empty($tax_query)) {
+        $args['tax_query'] = $tax_query;
+        if (count($tax_query) > 1) { $args['tax_query']['relation'] = 'AND'; } // Refine by requiring all selected taxonomies/terms
+    }
+
+    // Meta query for ACF fields
+    $meta_query = ['relation' => 'AND'];
+    // Single selects
+    if (!empty($_POST['sch_district'])) {
+        $meta_query[] = [
+            'key' => 'sch_district',
+            'value' => sanitize_text_field($_POST['sch_district']),
+            'compare' => '=',
+        ];
+    }
+    if (!empty($_POST['sch_region'])) {
+        $meta_query[] = [
+            'key' => 'sch_region',
+            'value' => sanitize_text_field($_POST['sch_region']),
+            'compare' => '=',
+        ];
+    }
+    // Multi checkboxes
+    if (!empty($_POST['sch_faith']) && is_array($_POST['sch_faith'])) {
+        $meta_query[] = [
+            'key' => 'sch_faith',
+            'value' => array_map('sanitize_text_field', $_POST['sch_faith']),
+            'compare' => 'IN',
+        ];
+    }
+    if (!empty($_POST['govt_private']) && is_array($_POST['govt_private'])) {
+        $meta_query[] = [
+            'key' => 'govt_private',
+            'value' => array_map('sanitize_text_field', $_POST['govt_private']),
+            'compare' => 'IN',
+        ];
+    }
+    if (!empty($_POST['day_boarding']) && is_array($_POST['day_boarding'])) {
+        $meta_query[] = [
+            'key' => 'day_boarding',
+            'value' => array_map('sanitize_text_field', $_POST['day_boarding']),
+            'compare' => 'IN',
+        ];
+    }
+    if (!empty($_POST['sch_gender']) && is_array($_POST['sch_gender'])) {
+        $meta_query[] = [
+            'key' => 'sch_gender',
+            'value' => array_map('sanitize_text_field', $_POST['sch_gender']),
+            'compare' => 'IN',
+        ];
+    }
+    if (count($meta_query) > 1) { // Only add if there are filters
+        $args['meta_query'] = $meta_query;
+    }
+
+    // Sorting
+    if (!empty($_POST['orderby'])) {
+        switch (sanitize_text_field($_POST['orderby'])) {
+            case 'title_asc':
+                $args['orderby'] = 'title';
+                $args['order'] = 'ASC';
+                break;
+            case 'title_desc':
+                $args['orderby'] = 'title';
+                $args['order'] = 'DESC';
+                break;
+            case 'date_desc':
+                $args['orderby'] = 'date';
+                $args['order'] = 'DESC';
+                break;
+            case 'date_asc':
+                $args['orderby'] = 'date';
+                $args['order'] = 'ASC';
+                break;
+        }
+    }
+
+    $query = new WP_Query($args);
+    ob_start();
+    if ($query->have_posts()) {
+        echo '<p class="results-count"><span>' . $query->found_posts . '</span> schools found.</p>';
+        echo '<div class="school-grid">';
+        while ($query->have_posts()) {
+            $query->the_post();
+                    $thumbnail_url = get_the_post_thumbnail_url(get_the_ID(), 'full');
+                    $post_link = get_permalink();
+                    $taxonomies = get_object_taxonomies(get_post_type(), 'names');
+                    $main_term = '';
+                    $main_url = '';
+                    if (!empty($taxonomies)) {
+                        $terms = get_the_terms(get_the_ID(), $taxonomies[0]);
+                        if ($terms && !is_wp_error($terms)) {
+                            $main_term = $terms[0]->name;
+                            $main_url = get_term_link($terms[0]);
+                        }
+                    }
+                    $post_id = get_the_ID();
+
+                    echo '<div class="featured-sch">';
+                    echo '<div class="img-section">';
+                    if ($thumbnail_url) {
+                        echo '<img src="' . esc_url($thumbnail_url) . '" alt="' . esc_attr(get_the_title()) . ' Cover Image" class="cover-img">';
+                    }
+                    echo '<div class="img-section-content">';
+                    if (get_field('sch_logo')) { echo '<img src="' . esc_url(get_field('sch_logo')) . '" alt="' . esc_attr(get_the_title()) . ' Logo" class="logo-img">'; }
+                    echo '<div class="float-right">';
+                    echo do_shortcode('[site_reviews_summary assigned_posts="' . $post_id . '" hide="bars,rating,summary"]');
+                    /*if ($main_term) {
+                        echo '<a href="' . esc_url($main_url) . '" class="main-term">' . esc_html($main_term) . '</a>';
+                    }*/
+                    echo '</div>';
+                    echo '</div>';
+                    echo '</div>';
+                    echo '<div class="title-section">';
+                    echo '<h4>' . esc_html(get_the_title()) . '</h4>';
+                    if ($d = get_field('sch_district')) {
+                echo '<small>(' . esc_html(is_array($d) ? implode(', ', $d) : $d) . ')</small>';
+            }
+                    echo '<a href="' . esc_url($post_link) . '" class="btn-box box-3"><div class="btn btn-three"><span>View Details</span></div></a>';
+                    if ($phone = get_field('sch_phone')) {
+                        $phones = preg_split('/\s+(?=[+0])/', $phone);
+                        $first_phone = trim($phones[0]);
+                        if ($first_phone) {
+                            $clean_phone = preg_replace('/[^\d+]/', '', $first_phone);
+                            echo '<a href="tel:' . esc_attr($clean_phone) . '" class="btn-box box-1"><div class="btn btn-one"><span><img src="https://devs.wordpress.ug/snet/ug/wp-content/uploads/sites/2/2025/08/calling.png" alt="Phone Icon" class="phone-icon" />' . esc_html($first_phone) . '</span></div></a>';
+                        }
+                    }
+                    //if (get_field('sch_phone')) { echo '<a href="tel:' . esc_attr(preg_replace('/[^\d+]/', '', get_field('sch_phone'))) . '" class="btn-box box-1"><div class="btn btn-one"><span><img src="https://devs.wordpress.ug/snet/ug/wp-content/uploads/sites/2/2025/08/calling.png" alt="Phone Icon" class="phone-icon" />' . esc_html(get_field('sch_phone')) . '</span></div></a>'; }
+                    echo '</div>';
+                    echo '</div>';
+        }
+        echo '</div>';
+        echo '<div class="pagination">';
+        $big = 999999999;
+        echo paginate_links([
+            'base' => str_replace($big, '%#%', esc_url(get_pagenum_link($big))),
+            'format' => '?paged=%#%',
+            'current' => max(1, $args['paged']),
+            'total' => $query->max_num_pages,
+        ]);
+        echo '</div>';
+    } else {
+        echo '<p>No schools found.</p>';
+    }
+    wp_reset_postdata();
+    echo ob_get_clean();
+    wp_die();
+}
+
