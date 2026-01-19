@@ -11,6 +11,7 @@ from crm.views import ClientViewSet, ClientContactViewSet, EngagementViewSet, En
 from portal.views import PortalViewSet
 from django.conf import settings
 from django.conf.urls.static import static
+from core.serializers import MyTokenView
 
 router = DefaultRouter()
 router.register(r'staff', StaffManageViewSet, basename='staff')
@@ -30,7 +31,8 @@ router.register(r'portal', PortalViewSet, basename='portal')
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'), # Login URL
+    # path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/', MyTokenView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('staff/me/', get_current_user, name='staff-me'),
 ]
