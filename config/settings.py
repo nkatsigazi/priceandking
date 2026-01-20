@@ -147,11 +147,11 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),  # Token lasts 24 hours
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7), # Refresh lasts 1 week
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
-    'USER_ID_FIELD': 'email', # Change from 'id' or 'username' to 'email'
-    'USER_ID_CLAIM': 'email',
+    'USER_ID_FIELD': 'id', 
+    'USER_ID_CLAIM': 'user_id',
 }
 
 MEDIA_URL = '/media/'

@@ -20,7 +20,8 @@ class User(AbstractUser):
     # NEW PROFESSIONAL FIELDS
     bio = models.TextField(blank=True, help_text="Short professional biography")
     skills = models.JSONField(default=list, help_text="List of technical skills e.g. ['IFRS', 'GAAP', 'Python']")
-    hourly_rate = models.DecimalField(max_digits=100, decimal_places=0, default=000)
+    #hourly_rate = models.DecimalField(max_digits=100, decimal_places=0, default=000)
+    hourly_rate = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     joining_date = models.DateField(null=True, blank=True)
     office_location = models.CharField(max_length=100, default='Headquarters')
     

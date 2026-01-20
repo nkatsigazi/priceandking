@@ -42,9 +42,8 @@ class UserSerializer(serializers.ModelSerializer):
 class MyTokenSerializer(TokenObtainPairSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Remove the default username field and add email
         self.fields['email'] = serializers.EmailField()
-        del self.fields['username']
+        self.fields.pop('username', None)
 
     def validate(self, attrs):
         # Map 'email' to 'username' so the parent class can process it
