@@ -276,10 +276,10 @@ const Login = () => {
                   Demo Credentials:
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Admin: admin@pk.com | 1234
+                  Admin: admin@pk.com | 1234@ABC
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Client: kk@pk.com | 1234
+                  Client: kk@pk.com | 1234@ABC
                 </Typography>
               </Box>
 
