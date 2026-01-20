@@ -279,7 +279,7 @@ const Login = () => {
                   Admin: admin@pk.com | 1234@ABC
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Client: kk@pk.com | 1234@ABC
+                  Client: td@pk.com | 1234@ABC
                 </Typography>
               </Box>
 
