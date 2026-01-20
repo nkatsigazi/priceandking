@@ -12,6 +12,7 @@ def setup_users():
     if not User.objects.filter(email="admin@pk.com").exists():
         print("Creating Admin...")
         User.objects.create_superuser(
+            username="admin@pk.com", # Add this line
             email="admin@pk.com",
             password="1234@ABC",
             role="PARTNER",
@@ -23,6 +24,7 @@ def setup_users():
     if not User.objects.filter(email="kk@pk.com").exists():
         print("Creating Client...")
         User.objects.create_user(
+            username="kk@pk.com", # Add this line
             email="kk@pk.com",
             password="1234@ABC",
             role="CLIENT",
